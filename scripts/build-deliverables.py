@@ -55,7 +55,6 @@ SAMPLES = [
 ]
 
 CONFLICTS = [
-    ("cleanup", "theme", "resource replacement order", "medium", "统一资源注册表，禁止直接覆盖同一路径"),
     ("anti-revoke", "message-actions", "message dispatcher overlap", "medium", "单一消息观察器，多订阅者只读分发"),
     ("anti-revoke", "keyword-reply", "message pipeline and database timing", "high", "关键词模块延迟执行且不得写核心消息表"),
     ("message-actions", "keyword-reply", "duplicate action dispatch", "high", "复用 message-actions 注册表"),
@@ -283,7 +282,8 @@ def write_summary(rows: list[dict], component_rows: list[dict], shared: Counter,
 
 - 底座固定为 SHA-256 `f8885ab2fe5e1c4c6604f6c93ddcb4847f4184a020742c3eb09a8a9e5382b474`。
 - 任何第三方闭源 dylib 均不复制进最终包。
-- 17 个模块全部默认关闭，Hook 列表为空；功能需重新实现并通过健康检查后才登记 Hook。
+- Liquid Glass 是固定 UIKit 基础界面层，不占模块开关；iOS 26 使用原生 `UIGlassEffect`。
+- 16 个功能模块全部默认关闭，Hook 列表为空；功能需重新实现并通过健康检查后才登记 Hook。
 - 登录、认证、凭据、Keychain、支付和核心 Session 类处于 Hook 拒绝清单。
 - 推送、CallKit、iPad 与多开只通过独立适配器和签名能力校验，不修改登录校验。
 - 连续两次异常启动触发 Safe Mode；稳定启动 30 秒后清零计数。

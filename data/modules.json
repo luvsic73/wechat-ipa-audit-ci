@@ -12,16 +12,6 @@
       "enabled": false
     },
     {
-      "id": "theme",
-      "group": "interface",
-      "compatible_versions": ["8.0.75"],
-      "dependencies": [],
-      "hooks": [],
-      "health_check": "resource-only",
-      "risk": "low",
-      "enabled": false
-    },
-    {
       "id": "file-enhancements",
       "group": "interface",
       "compatible_versions": ["8.0.75"],

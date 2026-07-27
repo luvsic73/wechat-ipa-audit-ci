@@ -8,7 +8,9 @@
 - 解析所有 Mach-O load commands、加密信息与代码签名命令。
 - 相对纯净砸壳基线只提取新增可执行组件，检查域名、动态加载、反调试和敏感 API。
 - YARA 与 ClamAV 本地扫描；样本及闭源第三方 dylib 不提交到仓库。
-- 17 个 `ModuleDescriptor` 全部默认关闭；连续两次异常启动进入 Safe Mode。
+- Liquid Glass 是固定基础界面层，不占模块开关；iOS 26 使用原生
+  `UIGlassEffect`，较早系统回退到 `systemMaterial`。
+- 16 个 `ModuleDescriptor` 全部默认关闭；连续两次异常启动进入 Safe Mode。
 - 登录、凭据、Keychain、支付和核心会话类在 Hook 拒绝清单中。
 - macOS GitHub Actions 构建 arm64 iOS `WeChatMods.dylib`。
 - LIEF 向预签名 IPA 写入加载命令；最终由 iLoader 重签和安装。

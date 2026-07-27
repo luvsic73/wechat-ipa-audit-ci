@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+#import "WMLiquidGlassStyle.h"
 #import "WMModuleDescriptor.h"
 #import "WMSafeModeController.h"
 
@@ -33,6 +34,8 @@ static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
 }
 
 static void WMBootstrap(void) {
+    [WMLiquidGlassStyle install];
+
     NSArray<WMModuleDescriptor *> *descriptors = WMLoadDescriptors();
     NSString *version =
         [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
