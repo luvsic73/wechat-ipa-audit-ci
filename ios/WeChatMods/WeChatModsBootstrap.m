@@ -1,10 +1,12 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+#import "WMFeatureStore.h"
 #import "WMLiquidGlassStyle.h"
 #import "WMModuleDescriptor.h"
 #import "WMModuleRuntime.h"
 #import "WMSafeModeController.h"
+#import "WMSettingsEntry.h"
 
 static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
     NSURL *manifestURL = [
@@ -36,13 +38,17 @@ static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
 
 static void WMBootstrap(void) {
     [WMLiquidGlassStyle install];
+    [WMSettingsEntry install];
 
     NSArray<WMModuleDescriptor *> *descriptors = WMLoadDescriptors();
     NSString *version =
         [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
     NSMutableArray<NSString *> *eligibleModules = [NSMutableArray array];
     for (WMModuleDescriptor *descriptor in descriptors) {
-        if (descriptor.isEnabled &&
+        BOOL enabled = [WMFeatureStore
+            isModuleEnabled:descriptor.moduleID
+               defaultValue:descriptor.isEnabled];
+        if (enabled &&
             [descriptor isCompatibleWithVersion:version] &&
             descriptor.passesHookPolicy) {
             [eligibleModules addObject:descriptor.moduleID];
