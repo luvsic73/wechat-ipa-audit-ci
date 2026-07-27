@@ -4,11 +4,11 @@
 
 ## 推荐安装包
 
-`wechatmods-coexist-iloader.ipa`
+`wechatmods-coexist-iloader-v2.ipa`
 
 - Bundle ID：`com.luvsic73.wechatmods`
 - 显示名称：`微信 Glass`
-- SHA-256：`000c094eaf91a671ec0d898d6284dea3b656ad80b7197db6714af34d9e07487d`
+- SHA-256：`31f7d43071c1a5dc7b76cf2f1c4babdb199b160fafa31b88f10e4a241be90ae0`
 - 状态：签名前 IPA，交给 iLoader 使用设备证书重签
 - 与官方标识的静态冲突：Bundle ID 0、URL Scheme 0、扩展签名残留 0
 
@@ -18,9 +18,10 @@
 
 | 功能 | 默认 | 构建证据 | 实机状态 |
 |---|---|---|---|
-| iOS 26 原生 Liquid Glass | 固定开启 | `UIGlassEffect` + `UIVisualEffectView`，arm64 编译通过 | 待签名验证 |
+| iOS 26 原生 Liquid Glass | 固定开启 | 动态系统栏 + 窗口上下安全区；`UIGlassEffect`，arm64 编译通过 | 待签名验证 |
 | 与官方客户端共存 / 基础多开 | 固定配置 | 独立 Bundle ID、URL Scheme、数据容器 | 待双 App 同机验证 |
 | 防撤回 | 默认开启 | 8.0.75 中存在 `CMessageMgr.onRevokeMsg:`；运行前校验签名 | 待单聊、群聊验证 |
+| 设置入口 | 固定开启 | “我 → 设置 → 微信 Glass”，原生 inset-grouped 功能页 | 待点击验证 |
 | Safe Mode | 固定开启 | 连续两次异常启动跳过功能模块 | 待故障注入验证 |
 | 模块健康记录 | 固定开启 | 写入 `wechatmods.module-health` | 待读取验证 |
 
@@ -38,7 +39,7 @@ Siri、Widget、录屏和 Watch 扩展。因此首轮重点是主 App 的登录�
 
 ## iLoader 安装顺序
 
-1. 在 iLoader v2.2.7 导入 `wechatmods-coexist-iloader.ipa`。
+1. 在 iLoader v2.2.7 导入 `wechatmods-coexist-iloader-v2.ipa`。
 2. 选择设备证书完成重签和安装；保留 iLoader 的签名日志。
 3. 首次安装后记录实际 Bundle ID、Entitlements、App Groups、Keychain Groups。
 4. 确认官方微信和“微信 Glass”同时存在，再使用隔离测试号登录。
@@ -46,10 +47,10 @@ Siri、Widget、录屏和 Watch 扩展。因此首轮重点是主 App 的登录�
 
 ## 关键校验
 
-- GitHub Actions：run `30287368158`，test/build 均成功，Objective-C 编译警告 0。
+- GitHub Actions：run `30290410570`，test/build 均成功，Objective-C 编译警告 0。
 - `WeChatMods.dylib` SHA-256：
-  `3a1a32df99f438f7a90af4b9606ceae4148664c1e1927a7e1b5f5cc4eb589ed2`
-- 共存 IPA ClamAV 1.5.3：0 infected，扫描解包数据 1.62 GiB。
+  `aebde638b3dbc17ebecd494976a2cb0cf0ddd45f08b026e7375abf64014e46a7`
+- 共存 IPA ClamAV 1.5.3：0 infected，扫描解包数据 1.90 GiB。
 - 包清单：16 个描述符，仅 `anti-revoke` 为 `enabled=true`。
 
 所有交付文件的哈希见 `SHA256SUMS.txt`。

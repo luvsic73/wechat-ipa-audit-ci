@@ -9,9 +9,11 @@
 - 相对纯净砸壳基线只提取新增可执行组件，检查域名、动态加载、反调试和敏感 API。
 - YARA 与 ClamAV 本地扫描；样本及闭源第三方 dylib 不提交到仓库。
 - Liquid Glass 是固定基础界面层，不占模块开关；iOS 26 使用原生
-  `UIGlassEffect`，较早系统回退到 `systemMaterial`。
+  `UIGlassEffect`，覆盖动态系统栏和窗口上下安全区；较早系统回退到
+  `systemMaterial`。
 - 16 个 `ModuleDescriptor` 中仅防撤回默认开启；其余功能默认关闭。
 - 防撤回仅检查并替换 `CMessageMgr.onRevokeMsg:`，签名不符时保持未安装状态。
+- “我 → 设置 → 微信 Glass”提供原生功能入口，防撤回开关重启生效。
 - 共存构建使用独立 Bundle ID、独立 URL Scheme 和独立数据容器，并移除扩展签名面。
 - 连续两次异常启动进入 Safe Mode。
 - 登录、凭据、Keychain、支付和核心会话类在 Hook 拒绝清单中。
