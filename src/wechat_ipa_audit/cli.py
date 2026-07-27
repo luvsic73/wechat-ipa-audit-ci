@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .audit import audit_ipa
+from .coexist import inspect_coexist, make_coexist_ipa
 from .deep_scan import scan_ipa_members
 from .diffing import diff_reports
 from .inventory import select_current_targets
@@ -60,6 +61,15 @@ def build_parser() -> argparse.ArgumentParser:
     inject.add_argument("loader")
     inject.add_argument("output_ipa")
 
+    coexist = commands.add_parser("coexist")
+    coexist.add_argument("input_ipa")
+    coexist.add_argument("output_ipa")
+    coexist.add_argument("--bundle-id", required=True)
+    coexist.add_argument("--display-name", default="微信 Glass")
+    coexist.add_argument("--scheme-prefix", default="wechatmods")
+    coexist.add_argument("--keep-extensions", action="store_true")
+    coexist.add_argument("--report")
+
     verify = commands.add_parser("verify")
     verify.add_argument("ipa")
     verify.add_argument("--output")
@@ -97,6 +107,17 @@ def main(argv: list[str] | None = None) -> int:
         package_all_disabled(args.base_ipa, args.output_ipa, modules)
     elif args.command == "inject":
         inject_loader(args.input_ipa, args.loader, args.output_ipa)
+    elif args.command == "coexist":
+        make_coexist_ipa(
+            args.input_ipa,
+            args.output_ipa,
+            bundle_id=args.bundle_id,
+            display_name=args.display_name,
+            scheme_prefix=args.scheme_prefix,
+            strip_extensions=not args.keep_extensions,
+        )
+        if args.report:
+            _write_json(inspect_coexist(args.output_ipa), args.report)
     elif args.command == "verify":
         result = verify_package(args.ipa)
         _write_json(result, args.output)

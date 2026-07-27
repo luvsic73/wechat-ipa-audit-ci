@@ -26,10 +26,11 @@
       "group": "messages",
       "compatible_versions": ["8.0.75"],
       "dependencies": [],
-      "hooks": [],
-      "health_check": "message-read-only-check",
+      "hooks": ["CMessageMgr.onRevokeMsg:"],
+      "health_check": "method-signature-check",
       "risk": "medium",
-      "enabled": false
+      "default_enabled": true,
+      "enabled": true
     },
     {
       "id": "media-export",

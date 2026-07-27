@@ -36,7 +36,7 @@ def package_all_disabled(
             "modules": [
                 {
                     **{key: value for key, value in module.items() if key != "enabled"},
-                    "enabled": False,
+                    "enabled": module.get("default_enabled") is True,
                 }
                 for module in modules
             ],
@@ -81,11 +81,22 @@ def verify_package(path: str | Path) -> dict[str, Any]:
     enabled = sorted(
         module["id"] for module in modules if module.get("enabled") is True
     )
+    unexpected_enabled = sorted(
+        module["id"]
+        for module in modules
+        if module.get("enabled") is True
+        and module.get("default_enabled") is not True
+    )
     return {
-        "valid": not enabled and loader_present and loader_executable,
+        "valid": (
+            not unexpected_enabled
+            and loader_present
+            and loader_executable
+        ),
         "manifest_path": manifest_path,
         "module_count": len(modules),
         "enabled_modules": enabled,
+        "unexpected_enabled_modules": unexpected_enabled,
         "loader_present": loader_present,
         "loader_executable": loader_executable,
     }

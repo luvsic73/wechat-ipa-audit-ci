@@ -3,6 +3,7 @@
 
 #import "WMLiquidGlassStyle.h"
 #import "WMModuleDescriptor.h"
+#import "WMModuleRuntime.h"
 #import "WMSafeModeController.h"
 
 static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
@@ -53,6 +54,7 @@ static void WMBootstrap(void) {
     if (safeMode.isSafeMode) {
         [eligibleModules removeAllObjects];
     }
+    [WMModuleRuntime installModules:eligibleModules];
 
     [[NSNotificationCenter defaultCenter]
         addObserverForName:UIApplicationDidFinishLaunchingNotification
@@ -68,9 +70,6 @@ static void WMBootstrap(void) {
                     );
                 }];
 
-    // Module implementations register only after this policy gate. The initial
-    // distribution contains descriptors and the loader, with every module off.
-    (void)eligibleModules;
 }
 
 __attribute__((constructor))

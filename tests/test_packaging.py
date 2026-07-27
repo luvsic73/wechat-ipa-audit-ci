@@ -62,3 +62,34 @@ class PackagingTests(unittest.TestCase):
         self.assertTrue(verification["valid"])
         self.assertTrue(verification["loader_present"])
         self.assertTrue(verification["loader_executable"])
+
+    def test_preserves_an_explicit_default_enabled_module(self) -> None:
+        modules = [
+            {
+                "id": "anti-revoke",
+                "default_enabled": True,
+                "enabled": True,
+            },
+            {"id": "media-export", "enabled": False},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base.ipa"
+            output = root / "output.ipa"
+            make_ipa(base)
+            package_all_disabled(base, output, modules)
+            with zipfile.ZipFile(output) as archive:
+                manifest = json.loads(
+                    archive.read(
+                        "Payload/Fixture.app/WeChatMods/module-manifest.json"
+                    )
+                )
+
+        self.assertEqual(
+            [
+                module["id"]
+                for module in manifest["modules"]
+                if module["enabled"]
+            ],
+            ["anti-revoke"],
+        )

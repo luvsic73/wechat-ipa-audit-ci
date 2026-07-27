@@ -13,8 +13,10 @@ xcrun --sdk iphoneos clang \
   -arch arm64 \
   -miphoneos-version-min=15.0 \
   -dynamiclib \
+  "$ROOT/ios/WeChatMods/WMAntiRevokeModule.m" \
   "$ROOT/ios/WeChatMods/WMLiquidGlassStyle.m" \
   "$ROOT/ios/WeChatMods/WMModuleDescriptor.m" \
+  "$ROOT/ios/WeChatMods/WMModuleRuntime.m" \
   "$ROOT/ios/WeChatMods/WMSafeModeController.m" \
   "$ROOT/ios/WeChatMods/WeChatModsBootstrap.m" \
   -framework Foundation \
