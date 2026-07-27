@@ -98,7 +98,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "inject":
         inject_loader(args.input_ipa, args.loader, args.output_ipa)
     elif args.command == "verify":
-        _write_json(verify_package(args.ipa), args.output)
+        result = verify_package(args.ipa)
+        _write_json(result, args.output)
+        return 0 if result["valid"] else 1
     return 0
 
 

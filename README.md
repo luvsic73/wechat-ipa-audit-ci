@@ -23,12 +23,15 @@ py -3 -m wechat_ipa_audit.cli diff reports\BASE.json reports\SAMPLE.json --outpu
 py -3 -m wechat_ipa_audit.cli package BASE.ipa staged.ipa --modules data\modules.json
 py -3 -m wechat_ipa_audit.cli inject staged.ipa dist\WeChatMods.dylib wechatmods-iloader.ipa
 py -3 -m wechat_ipa_audit.cli verify wechatmods-iloader.ipa
+
+# 等价的一键构建：写入全关闭清单、注入加载器并验证
+.\scripts\build-iloader.ps1 -BaseIpa BASE.ipa -OutputIpa wechatmods-iloader.ipa
 ```
 
 ## 构建边界
 
 `wechatmods-iloader.ipa` 是签名前产物。修改 Mach-O 后原签名不再有效，安装前必须由
-iLoader 用设备实际可用证书重签。`guanti/qy/wx/mm` 仅应在证书实际具备相应
+iLoader v2.2.7 用设备实际可用证书重签。`guanti/qy/wx/mm` 仅应在证书实际具备相应
 Bundle ID、App Groups、Keychain Groups 与推送能力时生成。
 
 静态规则命中表示需要复核，不等同于恶意软件结论。动态登录、推送、CallKit、

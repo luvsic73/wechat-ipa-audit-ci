@@ -69,15 +69,23 @@ def verify_package(path: str | Path) -> dict[str, Any]:
     with zipfile.ZipFile(path) as archive:
         manifest_path = _manifest_path(archive)
         manifest = json.loads(archive.read(manifest_path))
-        info_path = manifest_path.split("WeChatMods/", 1)[0] + "Info.plist"
+        app_prefix = manifest_path.split("WeChatMods/", 1)[0]
+        info_path = app_prefix + "Info.plist"
+        loader_path = app_prefix + "Frameworks/WeChatMods.dylib"
         plistlib.loads(archive.read(info_path))
+        loader_present = loader_path in archive.namelist()
+        loader_executable = loader_present and bool(
+            (archive.getinfo(loader_path).external_attr >> 16) & 0o111
+        )
     modules = manifest.get("modules", [])
     enabled = sorted(
         module["id"] for module in modules if module.get("enabled") is True
     )
     return {
-        "valid": not enabled,
+        "valid": not enabled and loader_present and loader_executable,
         "manifest_path": manifest_path,
         "module_count": len(modules),
         "enabled_modules": enabled,
+        "loader_present": loader_present,
+        "loader_executable": loader_executable,
     }

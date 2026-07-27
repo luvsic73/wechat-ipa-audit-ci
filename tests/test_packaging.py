@@ -37,6 +37,28 @@ class PackagingTests(unittest.TestCase):
                 {"enabled": False, "id": "theme", "risk": "low"},
             ],
         )
-        self.assertTrue(verification["valid"])
+        self.assertFalse(verification["valid"])
         self.assertEqual(verification["enabled_modules"], [])
+        self.assertFalse(verification["loader_present"])
+        self.assertFalse(verification["loader_executable"])
 
+    def test_verifies_a_complete_package_with_an_executable_loader(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base.ipa"
+            output = root / "output.ipa"
+            make_ipa(base)
+            package_all_disabled(base, output, [{"id": "theme"}])
+            loader = zipfile.ZipInfo(
+                "Payload/Fixture.app/Frameworks/WeChatMods.dylib"
+            )
+            loader.create_system = 3
+            loader.external_attr = 0o100755 << 16
+            with zipfile.ZipFile(output, "a", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(loader, b"loader")
+
+            verification = verify_package(output)
+
+        self.assertTrue(verification["valid"])
+        self.assertTrue(verification["loader_present"])
+        self.assertTrue(verification["loader_executable"])
