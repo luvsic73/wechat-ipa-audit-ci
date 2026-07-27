@@ -8,7 +8,7 @@
 
 - Bundle ID：`com.luvsic73.wechatmods`
 - 显示名称：`微信 Glass`
-- SHA-256：`31f7d43071c1a5dc7b76cf2f1c4babdb199b160fafa31b88f10e4a241be90ae0`
+- SHA-256：`00131ff449ab8d7826685b84e17473686da62b1dfc86bdc12698707d895b1879`
 - 状态：签名前 IPA，交给 iLoader 使用设备证书重签
 - 与官方标识的静态冲突：Bundle ID 0、URL Scheme 0、扩展签名残留 0
 
@@ -47,9 +47,9 @@ Siri、Widget、录屏和 Watch 扩展。因此首轮重点是主 App 的登录�
 
 ## 关键校验
 
-- GitHub Actions：run `30290410570`，test/build 均成功，Objective-C 编译警告 0。
+- GitHub Actions：run `30291317036`，test/build 均成功，Objective-C 编译警告 0。
 - `WeChatMods.dylib` SHA-256：
-  `aebde638b3dbc17ebecd494976a2cb0cf0ddd45f08b026e7375abf64014e46a7`
+  `712c8bacc90ba2a5eb4df827fb366ec86b68af723b4c70076b11d48d636e5907`
 - 共存 IPA ClamAV 1.5.3：0 infected，扫描解包数据 1.90 GiB。
 - 包清单：16 个描述符，仅 `anti-revoke` 为 `enabled=true`。
 
