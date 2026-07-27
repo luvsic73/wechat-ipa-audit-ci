@@ -273,7 +273,7 @@ def write_summary(rows: list[dict], component_rows: list[dict], shared: Counter,
 
 ## 工具证据
 
-- **ClamAV**：见 `clamav-components.txt`；0/44 命中已知签名。
+- **ClamAV**：见 `clamav-components.txt`；0/44 命中已知签名。最终预签包另见 `clamav-final.txt`；扫描 1.64 GiB，0 infected。
 - **YARA**：见 `yara-components.json` 和 `注入组件风险矩阵.csv`。
 - **LIEF/自研解析器**：记录每个 Mach-O 的 load commands、加密和签名命令。
 - **Ghidra 12.1.2 + MCP 5.17.0**：已反编译 PKC、xnsp、HBB 和 WCFix27LoginQR 的初始化路径；摘要见 `ghidra-findings.json`，原始输出见 `ghidra-priority-raw.json`。
