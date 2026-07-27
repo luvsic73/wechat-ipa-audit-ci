@@ -61,7 +61,7 @@ CONFLICTS = [
     ("message-actions", "keyword-reply", "duplicate action dispatch", "high", "复用 message-actions 注册表"),
     ("multi-instance-routing", "push-adapter", "Bundle ID and token routing", "high", "每个签名配置独立适配器与配置目录"),
     ("multi-instance-routing", "callkit-adapter", "Bundle ID and entitlement routing", "high", "构建期能力校验，缺能力则不生成"),
-    ("multi-instance-routing", "ipad-session-adapter", "session routing", "high", "仅观察会话状态，不改登录校验"),
+    ("multi-instance-routing", "ipad-session-adapter", "session routing", "high", "仅观察会话状态，保持登录校验原状"),
     ("push-adapter", "callkit-adapter", "background lifecycle", "high", "统一后台事件总线与超时预算"),
     ("location-fixture", "motion-fixture", "test-fixture state", "medium", "实验模块互斥且只在测试配置出现"),
     ("virtual-video-fixture", "media-export", "camera/media pipeline", "high", "实验模块启用时停用导出 Hook"),
@@ -213,7 +213,7 @@ def write_rollback() -> None:
 2. iLoader 签名前保存 `wechatmods-iloader.ipa`；签名后另存实际安装结果。
 3. 首次安装后导出实际 Bundle ID、Entitlements 与容器路径，禁止把推测值写回构建配置。
 4. 单模块异常：删除模块配置中的启用标记并重启；连续两次异常会自动进入 Safe Mode。
-5. 无法启动：用 iLoader 覆盖安装全模块关闭的同 Bundle ID 包。
+5. 启动失败：用 iLoader 覆盖安装全模块关闭的同 Bundle ID 包。
 6. 会话或数据库异常：停止模块测试，保留崩溃日志和容器副本，再覆盖回纯净基线。
 7. 签名能力变化：停用 push/callkit/qy/wx/mm 配置，重新按实际证书能力生成。
 
