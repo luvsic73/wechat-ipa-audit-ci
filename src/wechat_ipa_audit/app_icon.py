@@ -16,6 +16,9 @@ from PIL import Image
 
 _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
 _ROOT_ICON_FILE = re.compile(r"^(?:AppIcon.*|Icon(?:@.*)?)\.png$", re.IGNORECASE)
+_ICON_DIMENSIONS = re.compile(
+    r"^(?P<prefix>.*?)(?P<width>\d+(?:\.\d+)?)x(?P<height>\d+(?:\.\d+)?)$"
+)
 
 
 def _top_level_info(archive: zipfile.ZipFile) -> str:
@@ -66,6 +69,54 @@ def _render_icon(master: Image.Image, size: tuple[int, int]) -> bytes:
     return output.getvalue()
 
 
+def _primary_icon_files(info: dict[str, Any], key: str) -> list[str]:
+    files = (
+        info.get(key, {})
+        .get("CFBundlePrimaryIcon", {})
+        .get("CFBundleIconFiles", [])
+    )
+    return [name for name in files if isinstance(name, str) and name]
+
+
+def _missing_scale_icons(
+    info: dict[str, Any],
+    app_prefix: str,
+) -> dict[str, tuple[int, int]]:
+    desired: dict[str, tuple[int, int]] = {}
+    phone_files = _primary_icon_files(info, "CFBundleIcons")
+    ipad_files = _primary_icon_files(info, "CFBundleIcons~ipad")
+
+    for raw_name in phone_files:
+        base = raw_name.removesuffix(".png")
+        dimensions = _ICON_DIMENSIONS.fullmatch(base)
+        if dimensions is None:
+            continue
+        width = float(dimensions.group("width"))
+        height = float(dimensions.group("height"))
+        for scale in (2, 3):
+            desired[app_prefix + f"{base}@{scale}x.png"] = (
+                round(width * scale),
+                round(height * scale),
+            )
+
+    for raw_name in ipad_files:
+        base = raw_name.removesuffix(".png")
+        dimensions = _ICON_DIMENSIONS.fullmatch(base)
+        if dimensions is None:
+            continue
+        width = float(dimensions.group("width"))
+        height = float(dimensions.group("height"))
+        desired[app_prefix + f"{base}~ipad.png"] = (
+            round(width),
+            round(height),
+        )
+        desired[app_prefix + f"{base}@2x~ipad.png"] = (
+            round(width * 2),
+            round(height * 2),
+        )
+    return desired
+
+
 def replace_app_icon(
     input_ipa: str | Path,
     master_png: str | Path,
@@ -92,6 +143,7 @@ def replace_app_icon(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     replaced: list[dict[str, Any]] = []
+    added: list[dict[str, Any]] = []
     with zipfile.ZipFile(source_path) as source:
         info_path = _top_level_info(source)
         app_prefix = info_path[: -len("Info.plist")]
@@ -104,6 +156,7 @@ def replace_app_icon(
         if not isinstance(icon_name, str) or not icon_name:
             icon_name = "AppIcon"
         document_archive_prefix = app_prefix + icon_name + ".icon/"
+        existing_names = set(source.namelist())
 
         icon_members: dict[str, bytes] = {}
         for member in source.infolist():
@@ -131,6 +184,21 @@ def replace_app_icon(
         if not replaced:
             raise ValueError("package has no top-level raster app icons")
 
+        for name, size in _missing_scale_icons(info, app_prefix).items():
+            if name in existing_names:
+                continue
+            replacement = _render_icon(master, size)
+            icon_members[name] = replacement
+            added.append(
+                {
+                    "path": name,
+                    "size": list(size),
+                    "replacement_sha256": hashlib.sha256(
+                        replacement
+                    ).hexdigest(),
+                }
+            )
+
         with zipfile.ZipFile(
             output_path,
             "w",
@@ -152,6 +220,12 @@ def replace_app_icon(
                             length=1024 * 1024,
                         )
 
+            for name in sorted(item["path"] for item in added):
+                member = zipfile.ZipInfo(name)
+                member.create_system = 3
+                member.external_attr = 0o100644 << 16
+                target.writestr(member, icon_members[name])
+
             for file_path in sorted(
                 path for path in document_path.rglob("*") if path.is_file()
             ):
@@ -167,5 +241,7 @@ def replace_app_icon(
         "master_sha256": hashlib.sha256(master_path.read_bytes()).hexdigest(),
         "icon_document": icon_name + ".icon",
         "replaced_count": len(replaced),
+        "added_count": len(added),
         "replaced": replaced,
+        "added": added,
     }

@@ -154,7 +154,9 @@ class AppIconPackagingTests(unittest.TestCase):
                     if name.rsplit("/", 1)[-1]
                     in {
                         "AppIcon60x60@2x.png",
+                        "AppIcon60x60@3x.png",
                         "AppIcon76x76@2x~ipad.png",
+                        "AppIcon76x76~ipad.png",
                         "Icon@2x.png",
                     }
                 }
@@ -168,7 +170,9 @@ class AppIconPackagingTests(unittest.TestCase):
                 {name.rsplit("/", 1)[-1]: image.size for name, image in rewritten.items()},
                 {
                     "AppIcon60x60@2x.png": (120, 120),
+                    "AppIcon60x60@3x.png": (180, 180),
                     "AppIcon76x76@2x~ipad.png": (152, 152),
+                    "AppIcon76x76~ipad.png": (76, 76),
                     "Icon@2x.png": (114, 114),
                 },
             )
@@ -179,6 +183,7 @@ class AppIconPackagingTests(unittest.TestCase):
             )
             self.assertTrue(bundled_json["groups"][0]["specular"])
             self.assertEqual(report["replaced_count"], 3)
+            self.assertGreaterEqual(report["added_count"], 2)
             self.assertEqual(report["icon_document"], "AppIcon.icon")
 
 
