@@ -29,9 +29,11 @@ class LiquidGlassSourceTests(unittest.TestCase):
 
         self.assertIn('NSClassFromString(@"UIGlassEffect")', source)
         self.assertIn("UIBlurEffectStyleSystemMaterial", source)
+        self.assertIn("UIVisualEffectView", source)
         self.assertIn("UINavigationBarAppearance", source)
         self.assertIn("UITabBarAppearance", source)
         self.assertIn("UIToolbarAppearance", source)
+        self.assertNotIn("backgroundEffect = WMGlassEffect()", source)
         self.assertIn("WMLiquidGlassStyle.m", build_script)
 
 

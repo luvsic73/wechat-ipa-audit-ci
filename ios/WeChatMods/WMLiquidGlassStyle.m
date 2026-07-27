@@ -2,8 +2,10 @@
 
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
+#import <objc/runtime.h>
 
 static NSInteger const WMGlassEffectStyleRegular = 0;
+static void *WMLiquidGlassBackdropKey = &WMLiquidGlassBackdropKey;
 
 static UIVisualEffect *WMGlassEffect(void) {
     Class effectClass = NSClassFromString(@"UIGlassEffect");
@@ -26,10 +28,39 @@ static UIVisualEffect *WMGlassEffect(void) {
 }
 
 static void WMGlassifyAppearance(UIBarAppearance *appearance) {
-    appearance.backgroundEffect = WMGlassEffect();
+    appearance.backgroundEffect = nil;
     appearance.backgroundColor = UIColor.clearColor;
     appearance.shadowColor =
         [UIColor.separatorColor colorWithAlphaComponent:0.18];
+}
+
+static void WMInstallGlassBackdrop(UIView *bar) {
+    UIVisualEffectView *backdrop =
+        objc_getAssociatedObject(bar, WMLiquidGlassBackdropKey);
+    if (backdrop == nil) {
+        backdrop = [[UIVisualEffectView alloc] initWithEffect:WMGlassEffect()];
+        backdrop.translatesAutoresizingMaskIntoConstraints = NO;
+        backdrop.userInteractionEnabled = NO;
+        backdrop.accessibilityElementsHidden = YES;
+        objc_setAssociatedObject(
+            bar,
+            WMLiquidGlassBackdropKey,
+            backdrop,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+    } else {
+        backdrop.effect = WMGlassEffect();
+    }
+    if (backdrop.superview == bar) {
+        return;
+    }
+    [bar insertSubview:backdrop atIndex:0];
+    [NSLayoutConstraint activateConstraints:@[
+        [backdrop.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor],
+        [backdrop.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor],
+        [backdrop.topAnchor constraintEqualToAnchor:bar.topAnchor],
+        [backdrop.bottomAnchor constraintEqualToAnchor:bar.bottomAnchor]
+    ]];
 }
 
 static UINavigationBarAppearance *WMNavigationAppearance(void) {
@@ -62,6 +93,7 @@ static void WMGlassifyNavigationBar(UINavigationBar *bar) {
     bar.scrollEdgeAppearance = [appearance copy];
     bar.compactAppearance = [appearance copy];
     bar.translucent = YES;
+    WMInstallGlassBackdrop(bar);
 }
 
 static void WMGlassifyTabBar(UITabBar *bar) {
@@ -71,6 +103,7 @@ static void WMGlassifyTabBar(UITabBar *bar) {
     bar.standardAppearance = appearance;
     bar.scrollEdgeAppearance = [appearance copy];
     bar.translucent = YES;
+    WMInstallGlassBackdrop(bar);
 }
 
 static void WMGlassifyToolbar(UIToolbar *bar) {
@@ -81,6 +114,7 @@ static void WMGlassifyToolbar(UIToolbar *bar) {
     bar.scrollEdgeAppearance = [appearance copy];
     bar.compactAppearance = [appearance copy];
     bar.translucent = YES;
+    WMInstallGlassBackdrop(bar);
 }
 
 static void WMGlassifyViewTree(UIView *view) {
