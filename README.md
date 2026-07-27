@@ -29,7 +29,7 @@ py -3 -m wechat_ipa_audit.cli package BASE.ipa staged.ipa --modules data\modules
 py -3 -m wechat_ipa_audit.cli inject staged.ipa dist\WeChatMods.dylib wechatmods-iloader.ipa
 py -3 -m wechat_ipa_audit.cli verify wechatmods-iloader.ipa
 
-# 等价的一键构建：写入全关闭清单、注入加载器并验证
+# 等价的一键构建：写入默认模块清单、注入加载器并验证
 .\scripts\build-iloader.ps1 -BaseIpa BASE.ipa -OutputIpa wechatmods-iloader.ipa
 
 # 与官方客户端共存的基础多开包
