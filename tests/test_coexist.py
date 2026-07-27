@@ -8,6 +8,16 @@ from wechat_ipa_audit.coexist import inspect_coexist, make_coexist_ipa
 
 
 class CoexistPackagingTests(unittest.TestCase):
+    def test_powershell_build_uses_encoding_independent_display_name(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "build-coexist.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("[char]0x5FAE", script)
+        self.assertIn("[char]0x4FE1", script)
+
     def test_rewrites_identity_and_strips_extension_signing_surface(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

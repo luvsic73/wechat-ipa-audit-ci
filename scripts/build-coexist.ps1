@@ -5,7 +5,7 @@ param(
     [string]$OutputIpa,
     [string]$Loader,
     [string]$BundleId = "com.luvsic73.wechatmods",
-    [string]$DisplayName = "微信 Glass",
+    [string]$DisplayName,
     [string]$SchemePrefix = "wechatmods",
     [string]$Report
 )
@@ -13,6 +13,10 @@ param(
 $ErrorActionPreference = "Stop"
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $env:PYTHONPATH = Join-Path $projectRoot "src"
+if (-not $DisplayName) {
+    $DisplayName = ([char]0x5FAE).ToString() +
+        ([char]0x4FE1).ToString() + " Glass"
+}
 if (-not $Loader) {
     $Loader = Join-Path $projectRoot "dist\WeChatMods.dylib"
 }
