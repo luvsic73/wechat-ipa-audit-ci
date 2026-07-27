@@ -16,6 +16,7 @@ xcrun --sdk iphoneos clang \
   "$ROOT/ios/WeChatMods/WMAntiRevokeModule.m" \
   "$ROOT/ios/WeChatMods/WMFeatureStore.m" \
   "$ROOT/ios/WeChatMods/WMLiquidGlassStyle.m" \
+  "$ROOT/ios/WeChatMods/WMLoginLayoutAdapter.m" \
   "$ROOT/ios/WeChatMods/WMModuleDescriptor.m" \
   "$ROOT/ios/WeChatMods/WMModuleRuntime.m" \
   "$ROOT/ios/WeChatMods/WMSafeModeController.m" \

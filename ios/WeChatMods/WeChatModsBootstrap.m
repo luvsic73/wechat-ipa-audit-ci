@@ -3,6 +3,7 @@
 
 #import "WMFeatureStore.h"
 #import "WMLiquidGlassStyle.h"
+#import "WMLoginLayoutAdapter.h"
 #import "WMModuleDescriptor.h"
 #import "WMModuleRuntime.h"
 #import "WMSafeModeController.h"
@@ -38,6 +39,7 @@ static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
 
 static void WMBootstrap(void) {
     [WMLiquidGlassStyle install];
+    [WMLoginLayoutAdapter install];
     [WMSettingsEntry install];
 
     NSArray<WMModuleDescriptor *> *descriptors = WMLoadDescriptors();
@@ -80,6 +82,9 @@ static void WMBootstrap(void) {
 
 __attribute__((constructor))
 static void WeChatModsConstructor(void) {
+    [NSUserDefaults.standardUserDefaults
+        setBool:YES
+         forKey:@"wechatmods.loader-constructor-ran"];
     dispatch_async(dispatch_get_main_queue(), ^{
         WMBootstrap();
     });

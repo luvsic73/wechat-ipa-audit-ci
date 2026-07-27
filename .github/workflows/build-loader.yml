@@ -71,3 +71,19 @@ jobs:
             dist/icon-partial-info.plist
             dist/icon-assetutil.json
           if-no-files-found: error
+
+  simulator-ui:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      TARGET_DEVICE_NAME: iPhone 17 Pro Max
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run no-account iOS 26 UI fixture
+        run: bash scripts/run-ios-simulator-ui-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios26-simulator-ui-evidence
+          path: reports/simulator-ui
+          if-no-files-found: error

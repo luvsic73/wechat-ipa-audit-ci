@@ -22,6 +22,18 @@ class SettingsUISourceTests(unittest.TestCase):
         )
         self.assertNotIn("floating", source.lower())
 
+    def test_settings_entry_retries_and_hooks_both_lifecycle_seams(self) -> None:
+        source = (
+            ROOT / "ios" / "WeChatMods" / "WMSettingsEntry.m"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("UIApplicationDidFinishLaunchingNotification", source)
+        self.assertIn("UIApplicationDidBecomeActiveNotification", source)
+        self.assertIn('NSSelectorFromString(@"viewDidLoad")', source)
+        self.assertIn('NSSelectorFromString(@"reloadTableData")', source)
+        self.assertIn("WMSettingsEntryMarkerKey", source)
+        self.assertIn("objc_setAssociatedObject", source)
+
     def test_settings_controller_exposes_real_feature_state(self) -> None:
         controller = (
             ROOT / "ios" / "WeChatMods" / "WMSettingsViewController.m"
@@ -43,18 +55,37 @@ class SettingsUISourceTests(unittest.TestCase):
             bootstrap,
         )
 
-    def test_glass_shell_covers_dynamic_bars_and_safe_areas(self) -> None:
+    def test_glass_shell_covers_dynamic_navigation_and_control_bars(self) -> None:
         source = (
             ROOT / "ios" / "WeChatMods" / "WMLiquidGlassStyle.m"
         ).read_text(encoding="utf-8")
 
         self.assertIn("UIWindowDidBecomeVisibleNotification", source)
-        self.assertIn("safeAreaLayoutGuide.topAnchor", source)
-        self.assertIn("safeAreaLayoutGuide.bottomAnchor", source)
         self.assertIn('NSSelectorFromString(@"didMoveToWindow")', source)
-        self.assertIn("WMInstallWindowGlassChrome", source)
         self.assertIn('NSClassFromString(@"MMUINavigationBar")', source)
         self.assertIn('NSClassFromString(@"MMTabBar")', source)
+        self.assertIn("WMCustomNavigationHookInstalled", source)
+        self.assertIn("WMInstallDynamicBarHooks();", source)
+        self.assertNotIn("WMInstallWindowGlassChrome", source)
+        self.assertNotIn("WMInstallWindowEdgeGlass", source)
+
+    def test_login_layout_adapter_is_ui_only_and_uses_ios_26_background_extension(
+        self,
+    ) -> None:
+        source = (
+            ROOT / "ios" / "WeChatMods" / "WMLoginLayoutAdapter.m"
+        ).read_text(encoding="utf-8")
+        build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('@"WCAccountLoginByQRCodeViewController"', source)
+        self.assertIn('NSClassFromString(@"UIBackgroundExtensionView")', source)
+        self.assertIn("edgesForExtendedLayout = UIRectEdgeAll", source)
+        self.assertIn("extendedLayoutIncludesOpaqueBars = YES", source)
+        self.assertNotIn("ManualAuthAesReqData", source)
+        self.assertNotIn("setBundleId:", source)
+        self.assertIn("WMLoginLayoutAdapter.m", build_script)
 
     def test_loader_build_includes_settings_sources(self) -> None:
         build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
@@ -67,6 +98,32 @@ class SettingsUISourceTests(unittest.TestCase):
             "WMSettingsViewController.m",
         ):
             self.assertIn(source, build_script)
+
+    def test_ios_26_simulator_host_emits_runtime_diagnostics(self) -> None:
+        host = (
+            ROOT / "ios" / "SimulatorHost" / "SimulatorHost.m"
+        ).read_text(encoding="utf-8")
+        script = (
+            ROOT / "scripts" / "run-ios-simulator-ui-tests.sh"
+        ).read_text(encoding="utf-8")
+        workflow = (
+            ROOT / ".github" / "workflows" / "build-loader.yml"
+        ).read_text(encoding="utf-8")
+
+        for key in (
+            "loader_constructor_ran",
+            "settings_entry_count",
+            "settings_controller_opened",
+            "glass_effect_count",
+            "window_matches_screen",
+            "content_reaches_top_edge",
+            "content_reaches_bottom_edge",
+        ):
+            self.assertIn(key, host)
+        self.assertIn("iPhone 17 Pro Max", script)
+        self.assertIn("simctl", script)
+        self.assertIn("SimulatorHostDiagnostics.json", script)
+        self.assertIn("simulator-ui", workflow)
 
 
 if __name__ == "__main__":

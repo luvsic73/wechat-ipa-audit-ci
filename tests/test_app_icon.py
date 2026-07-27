@@ -69,6 +69,7 @@ class AppIconPackagingTests(unittest.TestCase):
             root = Path(directory)
             source = root / "source.ipa"
             output = root / "output.ipa"
+            second_output = root / "output-second-pass.ipa"
             master = root / "master.png"
             icon_bundle = root / "AppIcon.icon"
             (icon_bundle / "Assets").mkdir(parents=True)
@@ -144,6 +145,9 @@ class AppIconPackagingTests(unittest.TestCase):
 
             with zipfile.ZipFile(output) as archive:
                 names = archive.namelist()
+                packaged_info = plistlib.loads(
+                    archive.read("Payload/Fixture.app/Info.plist")
+                )
                 self.assertEqual(
                     archive.read("Payload/Fixture.app/content.bin"),
                     b"unchanged",
@@ -185,6 +189,37 @@ class AppIconPackagingTests(unittest.TestCase):
             self.assertEqual(report["replaced_count"], 3)
             self.assertGreaterEqual(report["added_count"], 2)
             self.assertEqual(report["icon_document"], "AppIcon.icon")
+            self.assertNotIn("CFBundleIcons", packaged_info)
+            self.assertNotIn("CFBundleIcons~ipad", packaged_info)
+            self.assertEqual(
+                packaged_info["CFBundleIconFiles"],
+                [
+                    "WeChatGlassIcon.png",
+                    "WeChatGlassIcon@2x.png",
+                    "WeChatGlassIcon@3x.png",
+                ],
+            )
+            for name in packaged_info["CFBundleIconFiles"]:
+                image = Image.open(
+                    io.BytesIO(
+                        zipfile.ZipFile(output).read(
+                            f"Payload/Fixture.app/{name}"
+                        )
+                    )
+                )
+                self.assertEqual(image.size, (512, 512))
+
+            replace_app_icon(
+                output,
+                master,
+                icon_bundle,
+                second_output,
+            )
+            with zipfile.ZipFile(second_output) as archive:
+                self.assertEqual(
+                    len(archive.namelist()),
+                    len(set(archive.namelist())),
+                )
 
 
 if __name__ == "__main__":

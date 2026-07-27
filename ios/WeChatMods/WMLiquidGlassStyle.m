@@ -6,13 +6,16 @@
 
 static NSInteger const WMGlassEffectStyleRegular = 0;
 static void *WMLiquidGlassBackdropKey = &WMLiquidGlassBackdropKey;
-static void *WMTopGlassChromeKey = &WMTopGlassChromeKey;
-static void *WMBottomGlassChromeKey = &WMBottomGlassChromeKey;
 static IMP WMNavigationDidMoveOriginal = NULL;
 static IMP WMTabDidMoveOriginal = NULL;
 static IMP WMToolbarDidMoveOriginal = NULL;
 static IMP WMCustomNavigationDidMoveOriginal = NULL;
 static IMP WMCustomTabDidMoveOriginal = NULL;
+static BOOL WMNavigationHookInstalled = NO;
+static BOOL WMTabHookInstalled = NO;
+static BOOL WMToolbarHookInstalled = NO;
+static BOOL WMCustomNavigationHookInstalled = NO;
+static BOOL WMCustomTabHookInstalled = NO;
 
 static UIVisualEffect *WMGlassEffect(void) {
     Class effectClass = NSClassFromString(@"UIGlassEffect");
@@ -124,65 +127,6 @@ static void WMGlassifyToolbar(UIToolbar *bar) {
     WMInstallGlassBackdrop(bar);
 }
 
-static UIVisualEffectView *WMInstallWindowEdgeGlass(
-    UIWindow *window,
-    void *key,
-    BOOL top
-) {
-    UIVisualEffectView *glass =
-        objc_getAssociatedObject(window, key);
-    if (glass == nil) {
-        glass = [[UIVisualEffectView alloc]
-            initWithEffect:WMGlassEffect()];
-        glass.translatesAutoresizingMaskIntoConstraints = NO;
-        glass.userInteractionEnabled = NO;
-        glass.accessibilityElementsHidden = YES;
-        glass.layer.zPosition = 1000.0;
-        objc_setAssociatedObject(
-            window,
-            key,
-            glass,
-            OBJC_ASSOCIATION_RETAIN_NONATOMIC
-        );
-        [window addSubview:glass];
-        if (top) {
-            [NSLayoutConstraint activateConstraints:@[
-                [glass.leadingAnchor
-                    constraintEqualToAnchor:window.leadingAnchor],
-                [glass.trailingAnchor
-                    constraintEqualToAnchor:window.trailingAnchor],
-                [glass.topAnchor
-                    constraintEqualToAnchor:window.topAnchor],
-                [glass.bottomAnchor constraintEqualToAnchor:
-                    window.safeAreaLayoutGuide.topAnchor]
-            ]];
-        } else {
-            [NSLayoutConstraint activateConstraints:@[
-                [glass.leadingAnchor
-                    constraintEqualToAnchor:window.leadingAnchor],
-                [glass.trailingAnchor
-                    constraintEqualToAnchor:window.trailingAnchor],
-                [glass.topAnchor constraintEqualToAnchor:
-                    window.safeAreaLayoutGuide.bottomAnchor],
-                [glass.bottomAnchor
-                    constraintEqualToAnchor:window.bottomAnchor]
-            ]];
-        }
-    } else {
-        glass.effect = WMGlassEffect();
-    }
-    [window bringSubviewToFront:glass];
-    return glass;
-}
-
-static void WMInstallWindowGlassChrome(UIWindow *window) {
-    if (window.hidden || window.alpha <= 0.0) {
-        return;
-    }
-    WMInstallWindowEdgeGlass(window, WMTopGlassChromeKey, YES);
-    WMInstallWindowEdgeGlass(window, WMBottomGlassChromeKey, NO);
-}
-
 static void WMGlassifyViewTree(UIView *view) {
     if ([view isKindOfClass:UINavigationBar.class]) {
         WMGlassifyNavigationBar((UINavigationBar *)view);
@@ -203,7 +147,6 @@ static void WMGlassifyWindows(void) {
             continue;
         }
         for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-            WMInstallWindowGlassChrome(window);
             WMGlassifyViewTree(window);
         }
     }
@@ -221,7 +164,6 @@ static void WMNavigationDidMove(
     }
     if (bar.window != nil) {
         WMGlassifyNavigationBar(bar);
-        WMInstallWindowGlassChrome(bar.window);
     }
 }
 
@@ -231,7 +173,6 @@ static void WMTabDidMove(UITabBar *bar, SEL selector) {
     }
     if (bar.window != nil) {
         WMGlassifyTabBar(bar);
-        WMInstallWindowGlassChrome(bar.window);
     }
 }
 
@@ -244,7 +185,6 @@ static void WMToolbarDidMove(UIToolbar *bar, SEL selector) {
     }
     if (bar.window != nil) {
         WMGlassifyToolbar(bar);
-        WMInstallWindowGlassChrome(bar.window);
     }
 }
 
@@ -252,9 +192,6 @@ static void WMGlassifyCustomBar(UIView *bar) {
     bar.opaque = NO;
     bar.backgroundColor = UIColor.clearColor;
     WMInstallGlassBackdrop(bar);
-    if (bar.window != nil) {
-        WMInstallWindowGlassChrome(bar.window);
-    }
 }
 
 static void WMCustomNavigationDidMove(
@@ -288,54 +225,65 @@ static void WMCustomTabDidMove(UIView *bar, SEL selector) {
     }
 }
 
-static void WMInstallDidMoveHook(
+static BOOL WMInstallDidMoveHook(
     Class viewClass,
     IMP replacement,
     IMP *original
 ) {
     if (viewClass == Nil) {
-        return;
+        return NO;
     }
     SEL selector = NSSelectorFromString(@"didMoveToWindow");
     Method method = class_getInstanceMethod(viewClass, selector);
     if (method == NULL) {
-        return;
+        return NO;
     }
     IMP inherited = method_getImplementation(method);
     const char *types = method_getTypeEncoding(method);
     if (class_addMethod(viewClass, selector, replacement, types)) {
         *original = inherited;
-        return;
+        return YES;
     }
     *original = method_setImplementation(method, replacement);
+    return *original != NULL;
 }
 
 static void WMInstallDynamicBarHooks(void) {
-    WMInstallDidMoveHook(
-        UINavigationBar.class,
-        (IMP)WMNavigationDidMove,
-        &WMNavigationDidMoveOriginal
-    );
-    WMInstallDidMoveHook(
-        UITabBar.class,
-        (IMP)WMTabDidMove,
-        &WMTabDidMoveOriginal
-    );
-    WMInstallDidMoveHook(
-        UIToolbar.class,
-        (IMP)WMToolbarDidMove,
-        &WMToolbarDidMoveOriginal
-    );
-    WMInstallDidMoveHook(
-        NSClassFromString(@"MMUINavigationBar"),
-        (IMP)WMCustomNavigationDidMove,
-        &WMCustomNavigationDidMoveOriginal
-    );
-    WMInstallDidMoveHook(
-        NSClassFromString(@"MMTabBar"),
-        (IMP)WMCustomTabDidMove,
-        &WMCustomTabDidMoveOriginal
-    );
+    if (!WMNavigationHookInstalled) {
+        WMNavigationHookInstalled = WMInstallDidMoveHook(
+            UINavigationBar.class,
+            (IMP)WMNavigationDidMove,
+            &WMNavigationDidMoveOriginal
+        );
+    }
+    if (!WMTabHookInstalled) {
+        WMTabHookInstalled = WMInstallDidMoveHook(
+            UITabBar.class,
+            (IMP)WMTabDidMove,
+            &WMTabDidMoveOriginal
+        );
+    }
+    if (!WMToolbarHookInstalled) {
+        WMToolbarHookInstalled = WMInstallDidMoveHook(
+            UIToolbar.class,
+            (IMP)WMToolbarDidMove,
+            &WMToolbarDidMoveOriginal
+        );
+    }
+    if (!WMCustomNavigationHookInstalled) {
+        WMCustomNavigationHookInstalled = WMInstallDidMoveHook(
+            NSClassFromString(@"MMUINavigationBar"),
+            (IMP)WMCustomNavigationDidMove,
+            &WMCustomNavigationDidMoveOriginal
+        );
+    }
+    if (!WMCustomTabHookInstalled) {
+        WMCustomTabHookInstalled = WMInstallDidMoveHook(
+            NSClassFromString(@"MMTabBar"),
+            (IMP)WMCustomTabDidMove,
+            &WMCustomTabDidMoveOriginal
+        );
+    }
 }
 
 static void WMInstallAppearanceDefaults(void) {
@@ -381,12 +329,14 @@ static void WMInstallAppearanceDefaults(void) {
                                dispatch_async(
                                    dispatch_get_main_queue(),
                                    ^{
+                                       WMInstallDynamicBarHooks();
                                        WMGlassifyWindows();
                                    }
                                );
                            }];
         }
         dispatch_async(dispatch_get_main_queue(), ^{
+            WMInstallDynamicBarHooks();
             WMGlassifyWindows();
         });
     });

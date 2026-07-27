@@ -19,6 +19,11 @@ _ROOT_ICON_FILE = re.compile(r"^(?:AppIcon.*|Icon(?:@.*)?)\.png$", re.IGNORECASE
 _ICON_DIMENSIONS = re.compile(
     r"^(?P<prefix>.*?)(?P<width>\d+(?:\.\d+)?)x(?P<height>\d+(?:\.\d+)?)$"
 )
+_LEGACY_ICON_FILES = (
+    "WeChatGlassIcon.png",
+    "WeChatGlassIcon@2x.png",
+    "WeChatGlassIcon@3x.png",
+)
 
 
 def _top_level_info(archive: zipfile.ZipFile) -> str:
@@ -157,6 +162,10 @@ def replace_app_icon(
             icon_name = "AppIcon"
         document_archive_prefix = app_prefix + icon_name + ".icon/"
         existing_names = set(source.namelist())
+        missing_scale_icons = _missing_scale_icons(info, app_prefix)
+        info.pop("CFBundleIcons", None)
+        info.pop("CFBundleIcons~ipad", None)
+        info["CFBundleIconFiles"] = list(_LEGACY_ICON_FILES)
 
         icon_members: dict[str, bytes] = {}
         for member in source.infolist():
@@ -184,7 +193,27 @@ def replace_app_icon(
         if not replaced:
             raise ValueError("package has no top-level raster app icons")
 
-        for name, size in _missing_scale_icons(info, app_prefix).items():
+        for relative_name in _LEGACY_ICON_FILES:
+            name = app_prefix + relative_name
+            replacement = _render_icon(master, (512, 512))
+            icon_members[name] = replacement
+            record = {
+                "path": name,
+                "size": [512, 512],
+                "replacement_sha256": hashlib.sha256(
+                    replacement
+                ).hexdigest(),
+            }
+            if name in existing_names:
+                original = source.read(name)
+                record["original_sha256"] = hashlib.sha256(
+                    original
+                ).hexdigest()
+                replaced.append(record)
+            else:
+                added.append(record)
+
+        for name, size in missing_scale_icons.items():
             if name in existing_names:
                 continue
             replacement = _render_icon(master, size)
@@ -207,6 +236,16 @@ def replace_app_icon(
         ) as target:
             for member in source.infolist():
                 if member.filename.startswith(document_archive_prefix):
+                    continue
+                if member.filename == info_path:
+                    target.writestr(
+                        member,
+                        plistlib.dumps(
+                            info,
+                            fmt=plistlib.FMT_BINARY,
+                            sort_keys=False,
+                        ),
+                    )
                     continue
                 replacement = icon_members.get(member.filename)
                 if replacement is not None:
