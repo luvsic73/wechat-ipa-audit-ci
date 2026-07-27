@@ -12,7 +12,7 @@
 - 状态：签名前 IPA，交给 iLoader 使用设备证书重签
 - 与官方标识的静态冲突：Bundle ID 0、URL Scheme 0、扩展签名残留 0
 
-`wechatmods-iloader.ipa` 保留为同官方 Bundle ID 的替换型构建，不用于共存安装。
+`wechatmods-replacement-official-id.ipa` 是同官方 Bundle ID 的替换型留档，不用于共存安装。
 
 ## 当前真实功能
 
