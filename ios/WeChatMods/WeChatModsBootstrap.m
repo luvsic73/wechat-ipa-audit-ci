@@ -1,0 +1,78 @@
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+
+#import "WMModuleDescriptor.h"
+#import "WMSafeModeController.h"
+
+static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
+    NSURL *manifestURL = [
+        NSBundle.mainBundle.resourceURL
+        URLByAppendingPathComponent:@"WeChatMods/module-manifest.json"
+    ];
+    NSData *data = [NSData dataWithContentsOfURL:manifestURL];
+    if (data == nil) {
+        return @[];
+    }
+    NSDictionary *manifest = [NSJSONSerialization JSONObjectWithData:data
+                                                              options:0
+                                                                error:nil];
+    NSArray *items = manifest[@"modules"];
+    if (![items isKindOfClass:NSArray.class]) {
+        return @[];
+    }
+
+    NSMutableArray<WMModuleDescriptor *> *descriptors = [NSMutableArray array];
+    for (NSDictionary *item in items) {
+        WMModuleDescriptor *descriptor =
+            [WMModuleDescriptor descriptorWithDictionary:item];
+        if (descriptor != nil) {
+            [descriptors addObject:descriptor];
+        }
+    }
+    return descriptors;
+}
+
+static void WMBootstrap(void) {
+    NSArray<WMModuleDescriptor *> *descriptors = WMLoadDescriptors();
+    NSString *version =
+        [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    NSMutableArray<NSString *> *eligibleModules = [NSMutableArray array];
+    for (WMModuleDescriptor *descriptor in descriptors) {
+        if (descriptor.isEnabled &&
+            [descriptor isCompatibleWithVersion:version] &&
+            descriptor.passesHookPolicy) {
+            [eligibleModules addObject:descriptor.moduleID];
+        }
+    }
+
+    WMSafeModeController *safeMode = WMSafeModeController.sharedController;
+    [safeMode beginLaunchWithEnabledModules:eligibleModules];
+    if (safeMode.isSafeMode) {
+        [eligibleModules removeAllObjects];
+    }
+
+    [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIApplicationDidFinishLaunchingNotification
+                    object:nil
+                     queue:NSOperationQueue.mainQueue
+                usingBlock:^(__unused NSNotification *notification) {
+                    dispatch_after(
+                        dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC),
+                        dispatch_get_main_queue(),
+                        ^{
+                            [safeMode markLaunchStable];
+                        }
+                    );
+                }];
+
+    // Module implementations register only after this policy gate. The initial
+    // distribution contains descriptors and the loader, with every module off.
+    (void)eligibleModules;
+}
+
+__attribute__((constructor))
+static void WeChatModsConstructor(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        WMBootstrap();
+    });
+}

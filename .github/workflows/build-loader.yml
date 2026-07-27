@@ -1,0 +1,36 @@
+name: build-loader
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - "scripts/build-loader.sh"
+      - ".github/workflows/build-loader.yml"
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = "src"
+          python -m unittest discover -s tests -v
+
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build arm64 iOS loader
+        run: bash scripts/build-loader.sh dist/WeChatMods.dylib
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WeChatMods-ios-arm64
+          path: dist/WeChatMods.dylib
+          if-no-files-found: error

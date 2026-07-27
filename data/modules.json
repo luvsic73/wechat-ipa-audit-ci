@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "id": "cleanup",
+      "group": "interface",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "resource-only",
+      "risk": "low",
+      "enabled": false
+    },
+    {
+      "id": "theme",
+      "group": "interface",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "resource-only",
+      "risk": "low",
+      "enabled": false
+    },
+    {
+      "id": "file-enhancements",
+      "group": "interface",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "sandbox-write-check",
+      "risk": "medium",
+      "enabled": false
+    },
+    {
+      "id": "anti-revoke",
+      "group": "messages",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "message-read-only-check",
+      "risk": "medium",
+      "enabled": false
+    },
+    {
+      "id": "media-export",
+      "group": "messages",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": ["file-enhancements"],
+      "hooks": [],
+      "health_check": "export-directory-check",
+      "risk": "medium",
+      "enabled": false
+    },
+    {
+      "id": "contact-assistant",
+      "group": "contacts",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "read-only-check",
+      "risk": "medium",
+      "enabled": false
+    },
+    {
+      "id": "private-friends",
+      "group": "privacy",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "local-state-check",
+      "risk": "medium",
+      "enabled": false
+    },
+    {
+      "id": "message-actions",
+      "group": "messages",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "action-registry-check",
+      "risk": "medium",
+      "enabled": false
+    },
+    {
+      "id": "keyword-reply",
+      "group": "messages",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": ["message-actions"],
+      "hooks": [],
+      "health_check": "rule-store-check",
+      "risk": "high",
+      "enabled": false
+    },
+    {
+      "id": "multi-instance-routing",
+      "group": "account-routing",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "signing-capability-check",
+      "risk": "high",
+      "enabled": false
+    },
+    {
+      "id": "push-adapter",
+      "group": "account-routing",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "entitlement-check",
+      "risk": "high",
+      "enabled": false
+    },
+    {
+      "id": "callkit-adapter",
+      "group": "account-routing",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "entitlement-check",
+      "risk": "high",
+      "enabled": false
+    },
+    {
+      "id": "ipad-session-adapter",
+      "group": "account-routing",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "session-read-only-check",
+      "risk": "high",
+      "enabled": false
+    },
+    {
+      "id": "location-fixture",
+      "group": "experimental",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "experimental-disabled",
+      "risk": "experimental",
+      "enabled": false
+    },
+    {
+      "id": "virtual-video-fixture",
+      "group": "experimental",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "experimental-disabled",
+      "risk": "experimental",
+      "enabled": false
+    },
+    {
+      "id": "motion-fixture",
+      "group": "experimental",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "experimental-disabled",
+      "risk": "experimental",
+      "enabled": false
+    },
+    {
+      "id": "red-packet-fixture",
+      "group": "experimental",
+      "compatible_versions": ["8.0.75"],
+      "dependencies": [],
+      "hooks": [],
+      "health_check": "experimental-disabled",
+      "risk": "experimental",
+      "enabled": false
+    }
+  ]
+}

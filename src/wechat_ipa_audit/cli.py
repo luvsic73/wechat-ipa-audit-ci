@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+from .audit import audit_ipa
+from .deep_scan import scan_ipa_members
+from .diffing import diff_reports
+from .inventory import select_current_targets
+from .inject import inject_loader
+from .packaging import package_all_disabled, verify_package
+
+
+def _read_json(path: str | Path) -> Any:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _write_json(data: Any, path: str | Path | None) -> None:
+    rendered = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True)
+    if path:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(rendered + "\n", encoding="utf-8")
+    else:
+        print(rendered)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="wechat-ipa-audit")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    audit = commands.add_parser("audit")
+    audit.add_argument("ipa")
+    audit.add_argument("--output")
+
+    diff = commands.add_parser("diff")
+    diff.add_argument("baseline_report")
+    diff.add_argument("candidate_report")
+    diff.add_argument("--output")
+
+    inventory = commands.add_parser("inventory")
+    inventory.add_argument("manifest")
+    inventory.add_argument("--stable", required=True)
+    inventory.add_argument("--output")
+
+    deep_scan = commands.add_parser("deep-scan")
+    deep_scan.add_argument("ipa")
+    deep_scan.add_argument("--diff", required=True)
+    deep_scan.add_argument("--extract-directory")
+    deep_scan.add_argument("--output")
+
+    package = commands.add_parser("package")
+    package.add_argument("base_ipa")
+    package.add_argument("output_ipa")
+    package.add_argument("--modules", required=True)
+
+    inject = commands.add_parser("inject")
+    inject.add_argument("input_ipa")
+    inject.add_argument("loader")
+    inject.add_argument("output_ipa")
+
+    verify = commands.add_parser("verify")
+    verify.add_argument("ipa")
+    verify.add_argument("--output")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if args.command == "audit":
+        _write_json(audit_ipa(args.ipa), args.output)
+    elif args.command == "diff":
+        result = diff_reports(
+            _read_json(args.baseline_report),
+            _read_json(args.candidate_report),
+        )
+        _write_json(result, args.output)
+    elif args.command == "inventory":
+        manifest = _read_json(args.manifest)
+        _write_json(
+            select_current_targets(manifest["samples"], stable_version=args.stable),
+            args.output,
+        )
+    elif args.command == "deep-scan":
+        diff = _read_json(args.diff)
+        _write_json(
+            scan_ipa_members(
+                args.ipa,
+                diff["added"],
+                extract_directory=args.extract_directory,
+            ),
+            args.output,
+        )
+    elif args.command == "package":
+        modules = _read_json(args.modules)["modules"]
+        package_all_disabled(args.base_ipa, args.output_ipa, modules)
+    elif args.command == "inject":
+        inject_loader(args.input_ipa, args.loader, args.output_ipa)
+    elif args.command == "verify":
+        _write_json(verify_package(args.ipa), args.output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
