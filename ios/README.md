@@ -13,3 +13,8 @@ material fallback.
 The denylist covers login, authentication, credential, Keychain, payment, and
 core session hook names. Push, CallKit, iPad session, and multi-instance work
 remain separate adapters guarded by signing-capability health checks.
+
+The only default-enabled feature is anti-revoke. It verifies the Objective-C
+class, selector, argument count, and void return type before replacing
+`-[CMessageMgr onRevokeMsg:]`. A failed check leaves the method unchanged, and
+Safe Mode skips module installation after two abnormal launches.

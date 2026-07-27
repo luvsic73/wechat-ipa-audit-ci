@@ -283,7 +283,7 @@ def write_summary(rows: list[dict], component_rows: list[dict], shared: Counter,
 - 底座固定为 SHA-256 `f8885ab2fe5e1c4c6604f6c93ddcb4847f4184a020742c3eb09a8a9e5382b474`。
 - 任何第三方闭源 dylib 均不复制进最终包。
 - Liquid Glass 是固定 UIKit 基础界面层，不占模块开关；iOS 26 使用原生 `UIGlassEffect`。
-- 16 个功能模块全部默认关闭，Hook 列表为空；功能需重新实现并通过健康检查后才登记 Hook。
+- 防撤回通过 `CMessageMgr.onRevokeMsg:` 的签名检查后默认开启；其余 15 个功能模块默认关闭且 Hook 列表为空。
 - 登录、认证、凭据、Keychain、支付和核心 Session 类处于 Hook 拒绝清单。
 - 推送、CallKit、iPad 与多开只通过独立适配器和签名能力校验，不修改登录校验。
 - 连续两次异常启动触发 Safe Mode；稳定启动 30 秒后清零计数。
