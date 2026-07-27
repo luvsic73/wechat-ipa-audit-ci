@@ -216,11 +216,12 @@
 
 static NSInteger WMCountGlassEffects(UIView *view) {
     NSInteger count = 0;
+    Class glassEffectClass = NSClassFromString(@"UIGlassEffect");
     if ([view isKindOfClass:UIVisualEffectView.class]) {
         UIVisualEffect *effect =
             ((UIVisualEffectView *)view).effect;
-        if ([NSStringFromClass(effect.class)
-                containsString:@"Glass"]) {
+        if (glassEffectClass != Nil &&
+            [effect isKindOfClass:glassEffectClass]) {
             count += 1;
         }
     }
@@ -228,6 +229,49 @@ static NSInteger WMCountGlassEffects(UIView *view) {
         count += WMCountGlassEffects(subview);
     }
     return count;
+}
+
+static NSInteger WMCountViewsWithIdentifier(
+    UIView *view,
+    NSString *accessibilityIdentifier
+) {
+    NSInteger count = [view.accessibilityIdentifier
+        isEqualToString:accessibilityIdentifier] ? 1 : 0;
+    for (UIView *subview in view.subviews) {
+        count += WMCountViewsWithIdentifier(
+            subview,
+            accessibilityIdentifier
+        );
+    }
+    return count;
+}
+
+static void WMCollectEffectClassNames(
+    UIView *view,
+    NSMutableOrderedSet<NSString *> *names
+) {
+    if ([view isKindOfClass:UIVisualEffectView.class]) {
+        UIVisualEffect *effect =
+            ((UIVisualEffectView *)view).effect;
+        if (effect != nil) {
+            [names addObject:NSStringFromClass(effect.class)];
+        }
+    }
+    for (UIView *subview in view.subviews) {
+        WMCollectEffectClassNames(subview, names);
+    }
+}
+
+static NSArray<NSNumber *> *WMRectComponents(CGRect rect) {
+    if (CGRectIsNull(rect)) {
+        return @[];
+    }
+    return @[
+        @(CGRectGetMinX(rect)),
+        @(CGRectGetMinY(rect)),
+        @(CGRectGetWidth(rect)),
+        @(CGRectGetHeight(rect))
+    ];
 }
 
 static UIView *WMFindView(
@@ -292,66 +336,127 @@ static void WMWriteDiagnostics(
         dispatch_time(DISPATCH_TIME_NOW, 600 * NSEC_PER_MSEC),
         dispatch_get_main_queue(),
         ^{
-            UIView *extension = WMFindView(
-                loginController.view,
-                @"wechatmods.login-background-extension"
-            );
-            CGRect extensionFrame = extension == nil
-                ? CGRectNull
-                : [extension.superview
-                    convertRect:extension.frame
-                         toView:loginController.view];
-            CGRect screenBounds = UIScreen.mainScreen.bounds;
             BOOL settingsOpened = [
                 settingsNavigation.topViewController
                 isKindOfClass:NSClassFromString(
                     @"WMSettingsViewController"
                 )
             ];
-            NSDictionary *diagnostics = @{
-                @"loader_constructor_ran": @(
-                    [NSUserDefaults.standardUserDefaults
-                        boolForKey:
-                            @"wechatmods.loader-constructor-ran"]
+            NSInteger glassEffectCount =
+                WMCountGlassEffects(window);
+            NSInteger glassBackdropCount =
+                WMCountViewsWithIdentifier(
+                    window,
+                    @"wechatmods.liquid-glass-backdrop"
+                );
+            NSMutableOrderedSet<NSString *> *effectClassNames =
+                [NSMutableOrderedSet orderedSet];
+            WMCollectEffectClassNames(window, effectClassNames);
+
+            UITabBarController *tabs =
+                (UITabBarController *)window.rootViewController;
+            tabs.selectedIndex = 1;
+            [window layoutIfNeeded];
+            [loginController.view layoutIfNeeded];
+
+            dispatch_after(
+                dispatch_time(
+                    DISPATCH_TIME_NOW,
+                    400 * NSEC_PER_MSEC
                 ),
-                @"settings_entry_count": @(entryCount),
-                @"settings_controller_opened": @(settingsOpened),
-                @"glass_effect_count": @(
-                    WMCountGlassEffects(window)
-                ),
-                @"window_matches_screen": @(
-                    WMRectNearlyEqual(window.frame, screenBounds)
-                ),
-                @"content_reaches_top_edge": @(
-                    extension != nil &&
-                    CGRectGetMinY(extensionFrame) <= 1.0
-                ),
-                @"content_reaches_bottom_edge": @(
-                    extension != nil &&
-                    CGRectGetMaxY(extensionFrame) >=
-                        CGRectGetHeight(loginController.view.bounds) - 1.0
-                ),
-                @"safe_area_insets": @{
-                    @"top": @(window.safeAreaInsets.top),
-                    @"left": @(window.safeAreaInsets.left),
-                    @"bottom": @(window.safeAreaInsets.bottom),
-                    @"right": @(window.safeAreaInsets.right)
-                },
-                @"system_version": UIDevice.currentDevice.systemVersion,
-                @"device_model": UIDevice.currentDevice.model
-            };
-            NSURL *documents = [[NSFileManager defaultManager]
-                URLsForDirectory:NSDocumentDirectory
-                       inDomains:NSUserDomainMask].firstObject;
-            NSURL *output = [documents
-                URLByAppendingPathComponent:
-                    @"SimulatorHostDiagnostics.json"];
-            NSData *json = [NSJSONSerialization
-                dataWithJSONObject:diagnostics
-                           options:NSJSONWritingPrettyPrinted |
-                               NSJSONWritingSortedKeys
-                             error:nil];
-            [json writeToURL:output atomically:YES];
+                dispatch_get_main_queue(),
+                ^{
+                    [window layoutIfNeeded];
+                    [loginController.view layoutIfNeeded];
+                    UIView *extension = WMFindView(
+                        loginController.view,
+                        @"wechatmods.login-background-extension"
+                    );
+                    CGRect extensionFrame = extension == nil
+                        ? CGRectNull
+                        : [extension.superview
+                            convertRect:extension.frame
+                                 toView:loginController.view];
+                    CGRect loginBounds =
+                        loginController.view.bounds;
+                    CGRect screenBounds =
+                        UIScreen.mainScreen.bounds;
+                    Class glassEffectClass =
+                        NSClassFromString(@"UIGlassEffect");
+                    SEL glassInitializer =
+                        NSSelectorFromString(@"initWithStyle:");
+                    NSDictionary *diagnostics = @{
+                        @"loader_constructor_ran": @(
+                            [NSUserDefaults.standardUserDefaults
+                                boolForKey:
+                                    @"wechatmods.loader-constructor-ran"]
+                        ),
+                        @"settings_entry_count": @(entryCount),
+                        @"settings_controller_opened": @(
+                            settingsOpened
+                        ),
+                        @"glass_effect_count": @(
+                            glassEffectCount
+                        ),
+                        @"glass_backdrop_count": @(
+                            glassBackdropCount
+                        ),
+                        @"glass_effect_api_available": @(
+                            glassEffectClass != Nil
+                        ),
+                        @"glass_effect_initializer_available": @(
+                            glassEffectClass != Nil &&
+                            [glassEffectClass
+                                instancesRespondToSelector:
+                                    glassInitializer]
+                        ),
+                        @"glass_effect_class_names":
+                            effectClassNames.array,
+                        @"window_matches_screen": @(
+                            WMRectNearlyEqual(
+                                window.frame,
+                                screenBounds
+                            )
+                        ),
+                        @"content_reaches_top_edge": @(
+                            extension != nil &&
+                            CGRectGetMinY(extensionFrame) <= 1.0
+                        ),
+                        @"content_reaches_bottom_edge": @(
+                            extension != nil &&
+                            CGRectGetMaxY(extensionFrame) >=
+                                CGRectGetHeight(loginBounds) - 1.0
+                        ),
+                        @"extension_frame":
+                            WMRectComponents(extensionFrame),
+                        @"login_bounds":
+                            WMRectComponents(loginBounds),
+                        @"safe_area_insets": @{
+                            @"top": @(window.safeAreaInsets.top),
+                            @"left": @(window.safeAreaInsets.left),
+                            @"bottom": @(window.safeAreaInsets.bottom),
+                            @"right": @(window.safeAreaInsets.right)
+                        },
+                        @"system_version":
+                            UIDevice.currentDevice.systemVersion,
+                        @"device_model":
+                            UIDevice.currentDevice.model
+                    };
+                    NSURL *documents = [[NSFileManager defaultManager]
+                        URLsForDirectory:NSDocumentDirectory
+                               inDomains:NSUserDomainMask].firstObject;
+                    NSURL *output = [documents
+                        URLByAppendingPathComponent:
+                            @"SimulatorHostDiagnostics.json"];
+                    NSData *json = [NSJSONSerialization
+                        dataWithJSONObject:diagnostics
+                                   options:
+                                       NSJSONWritingPrettyPrinted |
+                                       NSJSONWritingSortedKeys
+                                     error:nil];
+                    [json writeToURL:output atomically:YES];
+                }
+            );
         }
     );
 }

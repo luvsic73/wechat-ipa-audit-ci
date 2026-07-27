@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 ARCH="$(uname -m)"
 TARGET_DEVICE_NAME="${TARGET_DEVICE_NAME:-iPhone 17 Pro Max}"
+TARGET_RUNTIME_VERSION="${TARGET_RUNTIME_VERSION:-26.2}"
 BUNDLE_ID="com.example.wechatmods.simulatorhost"
 DIST="$ROOT/dist/simulator-ui"
 APP="$DIST/SimulatorHost.app"
@@ -81,23 +82,44 @@ PLIST
 
 codesign --force --sign - "$APP"
 
-DEVICE_JSON="$(xcrun simctl list devices available -j)"
-UDID="$(python3 - "$TARGET_DEVICE_NAME" "$DEVICE_JSON" <<'PY'
+RUNTIMES_JSON="$(xcrun simctl list runtimes available -j)"
+RUNTIME="$(python3 - "$TARGET_RUNTIME_VERSION" "$RUNTIMES_JSON" <<'PY'
 import json
 import sys
 
 target = sys.argv[1]
-data = json.loads(sys.argv[2])
+runtimes = [
+    item for item in json.loads(sys.argv[2])["runtimes"]
+    if item["name"].startswith("iOS") and item.get("isAvailable", False)
+]
+exact = [
+    item["identifier"] for item in runtimes
+    if item.get("version") == target
+]
+print(exact[0] if exact else "")
+PY
+)"
+if [[ -z "$RUNTIME" ]]; then
+  echo "Required iOS Simulator runtime $TARGET_RUNTIME_VERSION is absent" >&2
+  exit 1
+fi
+
+DEVICE_JSON="$(xcrun simctl list devices available -j)"
+UDID="$(python3 - "$TARGET_DEVICE_NAME" "$RUNTIME" "$DEVICE_JSON" <<'PY'
+import json
+import sys
+
+target = sys.argv[1]
+runtime = sys.argv[2]
+data = json.loads(sys.argv[3])
 exact = []
-for runtime, devices in data["devices"].items():
-    if "iOS-" not in runtime:
-        continue
-    for device in devices:
-        if not device.get("isAvailable", False):
-            continue
-        if device["name"] == target:
-            exact.append((runtime, device["udid"]))
-print(sorted(exact, reverse=True)[0][1] if exact else "")
+for device in data["devices"].get(runtime, []):
+    if (
+        device.get("isAvailable", False)
+        and device["name"] == target
+    ):
+        exact.append(device["udid"])
+print(sorted(exact, reverse=True)[0] if exact else "")
 PY
 )"
 
@@ -115,17 +137,6 @@ fallback = [
     if item["name"].startswith("iPhone")
 ]
 print((exact or fallback)[-1])
-PY
-)"
-  RUNTIMES_JSON="$(xcrun simctl list runtimes available -j)"
-  RUNTIME="$(python3 - "$RUNTIMES_JSON" <<'PY'
-import json
-import sys
-runtimes = [
-    item["identifier"] for item in json.loads(sys.argv[1])["runtimes"]
-    if item["name"].startswith("iOS") and item.get("isAvailable", False)
-]
-print(sorted(runtimes, reverse=True)[0])
 PY
 )"
   UDID="$(xcrun simctl create \
@@ -172,9 +183,9 @@ errors = []
 for key, value in expected.items():
     if data.get(key) != value:
         errors.append(f"{key}: expected {value!r}, got {data.get(key)!r}")
-if data.get("glass_effect_count", 0) < 3:
+if data.get("glass_backdrop_count", 0) < 3:
     errors.append(
-        "glass_effect_count: expected at least 3 navigation/control effects"
+        "glass_backdrop_count: expected at least 3 navigation/control backdrops"
     )
 if errors:
     raise SystemExit("\n".join(errors))

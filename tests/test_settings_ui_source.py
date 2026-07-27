@@ -115,12 +115,16 @@ class SettingsUISourceTests(unittest.TestCase):
             "settings_entry_count",
             "settings_controller_opened",
             "glass_effect_count",
+            "glass_backdrop_count",
+            "glass_effect_api_available",
+            "glass_effect_class_names",
             "window_matches_screen",
             "content_reaches_top_edge",
             "content_reaches_bottom_edge",
         ):
             self.assertIn(key, host)
         self.assertIn("iPhone 17 Pro Max", script)
+        self.assertIn("TARGET_RUNTIME_VERSION", script)
         self.assertIn("simctl", script)
         self.assertIn("SimulatorHostDiagnostics.json", script)
         self.assertIn("simulator-ui", workflow)

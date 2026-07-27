@@ -61,6 +61,8 @@ static void WMInstallGlassBackdrop(UIView *bar) {
     } else {
         backdrop.effect = WMGlassEffect();
     }
+    backdrop.accessibilityIdentifier =
+        @"wechatmods.liquid-glass-backdrop";
     if (backdrop.superview == bar) {
         return;
     }
