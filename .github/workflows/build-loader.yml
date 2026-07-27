@@ -5,8 +5,12 @@ on:
   push:
     branches: [main]
     paths:
+      - "assets/**"
       - "ios/**"
-      - "scripts/build-loader.sh"
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
       - ".github/workflows/build-loader.yml"
 
 jobs:
@@ -17,6 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install package
+        run: python -m pip install -e .
       - name: Run unit tests
         shell: pwsh
         run: |
@@ -33,4 +39,35 @@ jobs:
         with:
           name: WeChatMods-ios-arm64
           path: dist/WeChatMods.dylib
+          if-no-files-found: error
+
+  icon:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile iOS 26.2 Liquid Glass icon
+        run: |
+          mkdir -p dist/icon-compiled
+          xcodebuild -version
+          xcrun actool assets/AppIcon.icon \
+            --compile dist/icon-compiled \
+            --platform iphoneos \
+            --minimum-deployment-target 15.0 \
+            --app-icon AppIcon \
+            --target-device iphone \
+            --target-device ipad \
+            --output-partial-info-plist dist/icon-partial-info.plist
+          plutil -p dist/icon-partial-info.plist
+          test -s dist/icon-compiled/Assets.car
+          xcrun assetutil --info dist/icon-compiled/Assets.car \
+            > dist/icon-assetutil.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AppIcon-liquid-glass-ios26
+          path: |
+            dist/icon-compiled/Assets.car
+            dist/icon-partial-info.plist
+            dist/icon-assetutil.json
           if-no-files-found: error

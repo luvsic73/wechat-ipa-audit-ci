@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .app_icon import replace_app_icon
 from .audit import audit_ipa
 from .coexist import inspect_coexist, make_coexist_ipa
 from .deep_scan import scan_ipa_members
@@ -70,6 +71,13 @@ def build_parser() -> argparse.ArgumentParser:
     coexist.add_argument("--keep-extensions", action="store_true")
     coexist.add_argument("--report")
 
+    icon = commands.add_parser("icon")
+    icon.add_argument("input_ipa")
+    icon.add_argument("master_png")
+    icon.add_argument("icon_document")
+    icon.add_argument("output_ipa")
+    icon.add_argument("--report")
+
     verify = commands.add_parser("verify")
     verify.add_argument("ipa")
     verify.add_argument("--output")
@@ -118,6 +126,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.report:
             _write_json(inspect_coexist(args.output_ipa), args.report)
+    elif args.command == "icon":
+        _write_json(
+            replace_app_icon(
+                args.input_ipa,
+                args.master_png,
+                args.icon_document,
+                args.output_ipa,
+            ),
+            args.report,
+        )
     elif args.command == "verify":
         result = verify_package(args.ipa)
         _write_json(result, args.output)
