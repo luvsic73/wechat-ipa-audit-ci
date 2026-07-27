@@ -11,6 +11,8 @@ static void *WMBottomGlassChromeKey = &WMBottomGlassChromeKey;
 static IMP WMNavigationDidMoveOriginal = NULL;
 static IMP WMTabDidMoveOriginal = NULL;
 static IMP WMToolbarDidMoveOriginal = NULL;
+static IMP WMCustomNavigationDidMoveOriginal = NULL;
+static IMP WMCustomTabDidMoveOriginal = NULL;
 
 static UIVisualEffect *WMGlassEffect(void) {
     Class effectClass = NSClassFromString(@"UIGlassEffect");
@@ -246,11 +248,54 @@ static void WMToolbarDidMove(UIToolbar *bar, SEL selector) {
     }
 }
 
+static void WMGlassifyCustomBar(UIView *bar) {
+    bar.opaque = NO;
+    bar.backgroundColor = UIColor.clearColor;
+    WMInstallGlassBackdrop(bar);
+    if (bar.window != nil) {
+        WMInstallWindowGlassChrome(bar.window);
+    }
+}
+
+static void WMCustomNavigationDidMove(
+    UIView *bar,
+    SEL selector
+) {
+    if (WMCustomNavigationDidMoveOriginal != NULL) {
+        ((void (*)(id, SEL))WMCustomNavigationDidMoveOriginal)(
+            bar,
+            selector
+        );
+    }
+    if ([bar isKindOfClass:UINavigationBar.class]) {
+        WMGlassifyNavigationBar((UINavigationBar *)bar);
+    } else {
+        WMGlassifyCustomBar(bar);
+    }
+}
+
+static void WMCustomTabDidMove(UIView *bar, SEL selector) {
+    if (WMCustomTabDidMoveOriginal != NULL) {
+        ((void (*)(id, SEL))WMCustomTabDidMoveOriginal)(
+            bar,
+            selector
+        );
+    }
+    if ([bar isKindOfClass:UITabBar.class]) {
+        WMGlassifyTabBar((UITabBar *)bar);
+    } else {
+        WMGlassifyCustomBar(bar);
+    }
+}
+
 static void WMInstallDidMoveHook(
     Class viewClass,
     IMP replacement,
     IMP *original
 ) {
+    if (viewClass == Nil) {
+        return;
+    }
     SEL selector = NSSelectorFromString(@"didMoveToWindow");
     Method method = class_getInstanceMethod(viewClass, selector);
     if (method == NULL) {
@@ -280,6 +325,16 @@ static void WMInstallDynamicBarHooks(void) {
         UIToolbar.class,
         (IMP)WMToolbarDidMove,
         &WMToolbarDidMoveOriginal
+    );
+    WMInstallDidMoveHook(
+        NSClassFromString(@"MMUINavigationBar"),
+        (IMP)WMCustomNavigationDidMove,
+        &WMCustomNavigationDidMoveOriginal
+    );
+    WMInstallDidMoveHook(
+        NSClassFromString(@"MMTabBar"),
+        (IMP)WMCustomTabDidMove,
+        &WMCustomTabDidMoveOriginal
     );
 }
 

@@ -53,6 +53,8 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn("safeAreaLayoutGuide.bottomAnchor", source)
         self.assertIn('NSSelectorFromString(@"didMoveToWindow")', source)
         self.assertIn("WMInstallWindowGlassChrome", source)
+        self.assertIn('NSClassFromString(@"MMUINavigationBar")', source)
+        self.assertIn('NSClassFromString(@"MMTabBar")', source)
 
     def test_loader_build_includes_settings_sources(self) -> None:
         build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
