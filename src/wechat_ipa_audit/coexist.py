@@ -28,6 +28,7 @@ OFFICIAL_URL_SCHEMES = {
     "wx703",
 }
 _BUNDLE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]+$")
+_BUNDLE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
 
 
@@ -61,6 +62,7 @@ def _rewrite_info(
     *,
     old_bundle_id: str,
     new_bundle_id: str,
+    bundle_name: str,
     display_name: str,
     scheme_prefix: str,
 ) -> bytes:
@@ -70,6 +72,7 @@ def _rewrite_info(
         new_bundle_id,
     )
     info["CFBundleIdentifier"] = new_bundle_id
+    info["CFBundleName"] = bundle_name
     info["CFBundleDisplayName"] = display_name
     for item in info.get("CFBundleURLTypes", []):
         schemes = item.get("CFBundleURLSchemes")
@@ -85,6 +88,7 @@ def make_coexist_ipa(
     output_ipa: str | Path,
     *,
     bundle_id: str,
+    bundle_name: str = "WeChatGlass",
     display_name: str,
     scheme_prefix: str,
     strip_extensions: bool,
@@ -95,6 +99,8 @@ def make_coexist_ipa(
         OFFICIAL_BUNDLE_PREFIX + "."
     ):
         raise ValueError("coexist bundle identifier must use another prefix")
+    if not _BUNDLE_NAME.fullmatch(bundle_name):
+        raise ValueError(f"invalid ASCII bundle name: {bundle_name}")
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9.-]*", scheme_prefix):
         raise ValueError(f"invalid URL scheme prefix: {scheme_prefix}")
 
@@ -138,6 +144,7 @@ def make_coexist_ipa(
                             source.read(member),
                             old_bundle_id=original_bundle_id,
                             new_bundle_id=bundle_id,
+                            bundle_name=bundle_name,
                             display_name=display_name,
                             scheme_prefix=scheme_prefix,
                         ),
@@ -158,6 +165,7 @@ def inspect_coexist(path: str | Path) -> dict[str, Any]:
         app_prefix = info_path[: -len("Info.plist")]
         info = plistlib.loads(archive.read(info_path))
         bundle_id = info.get("CFBundleIdentifier")
+        bundle_name = info.get("CFBundleName")
         schemes = sorted(
             {
                 scheme
@@ -183,15 +191,22 @@ def inspect_coexist(path: str | Path) -> dict[str, Any]:
         or bundle_id == OFFICIAL_BUNDLE_PREFIX
         or bundle_id.startswith(OFFICIAL_BUNDLE_PREFIX + ".")
     )
+    developer_app_id_name_ready = (
+        isinstance(bundle_name, str)
+        and _BUNDLE_NAME.fullmatch(bundle_name) is not None
+    )
     scheme_collisions = sorted(OFFICIAL_URL_SCHEMES.intersection(schemes))
     return {
         "coexist_ready": (
             not bundle_collision
+            and developer_app_id_name_ready
             and not scheme_collisions
             and not extensions
             and not signing_residue
         ),
         "bundle_id": bundle_id,
+        "bundle_name": bundle_name,
+        "developer_app_id_name_ready": developer_app_id_name_ready,
         "bundle_collision": bundle_collision,
         "registered_url_schemes": schemes,
         "official_url_scheme_collisions": scheme_collisions,

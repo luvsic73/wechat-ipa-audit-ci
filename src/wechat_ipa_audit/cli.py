@@ -68,6 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     coexist.add_argument("input_ipa")
     coexist.add_argument("output_ipa")
     coexist.add_argument("--bundle-id", required=True)
+    coexist.add_argument("--bundle-name", default="WeChatGlass")
     coexist.add_argument("--display-name", default="微信 Glass")
     coexist.add_argument("--scheme-prefix", default="wechatmods")
     coexist.add_argument("--keep-extensions", action="store_true")
@@ -132,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
             args.input_ipa,
             args.output_ipa,
             bundle_id=args.bundle_id,
+            bundle_name=args.bundle_name,
             display_name=args.display_name,
             scheme_prefix=args.scheme_prefix,
             strip_extensions=not args.keep_extensions,

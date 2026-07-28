@@ -74,6 +74,7 @@ try {
     py -3 -m wechat_ipa_audit.cli coexist `
         $iconIpa $outputPath `
         --bundle-id "com.tencent.qy.xin" `
+        --bundle-name "WeChatGlass" `
         --display-name $DisplayName `
         --scheme-prefix "wechatglass" `
         --report (Join-Path $reportPath "coexist-readiness.json")

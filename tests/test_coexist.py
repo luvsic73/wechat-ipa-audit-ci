@@ -26,6 +26,7 @@ class CoexistPackagingTests(unittest.TestCase):
             main_info = {
                 "CFBundleIdentifier": "com.tencent.xin",
                 "CFBundleExecutable": "WeChat",
+                "CFBundleName": "微信",
                 "CFBundleDisplayName": "微信",
                 "CFBundleURLTypes": [
                     {"CFBundleURLSchemes": ["wechat", "weixin", "prefs"]}
@@ -70,6 +71,7 @@ class CoexistPackagingTests(unittest.TestCase):
                 source,
                 output,
                 bundle_id="com.luvsic73.wechatmods",
+                bundle_name="WeChatGlass",
                 display_name="微信 Glass",
                 scheme_prefix="wechatmods",
                 strip_extensions=True,
@@ -86,6 +88,7 @@ class CoexistPackagingTests(unittest.TestCase):
             rewritten["CFBundleIdentifier"],
             "com.luvsic73.wechatmods",
         )
+        self.assertEqual(rewritten["CFBundleName"], "WeChatGlass")
         self.assertEqual(rewritten["CFBundleDisplayName"], "微信 Glass")
         self.assertEqual(
             rewritten["CFBundleURLTypes"][0]["CFBundleURLSchemes"],
@@ -107,6 +110,8 @@ class CoexistPackagingTests(unittest.TestCase):
             any(name.endswith("embedded.mobileprovision") for name in names)
         )
         self.assertTrue(inspection["coexist_ready"])
+        self.assertTrue(inspection["developer_app_id_name_ready"])
+        self.assertEqual(inspection["bundle_name"], "WeChatGlass")
         self.assertEqual(inspection["extensions"], [])
         self.assertEqual(inspection["signing_residue"], [])
 
