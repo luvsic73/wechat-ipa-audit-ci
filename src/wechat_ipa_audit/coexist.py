@@ -78,6 +78,7 @@ def _rewrite_info(
     info["CFBundleIdentifier"] = new_bundle_id
     info["CFBundleName"] = bundle_name
     info["CFBundleDisplayName"] = display_name
+    info.pop("UIDesignRequiresCompatibility", None)
     for item in info.get("CFBundleURLTypes", []):
         schemes = item.get("CFBundleURLSchemes")
         if isinstance(schemes, list):
@@ -243,6 +244,9 @@ def inspect_coexist(path: str | Path) -> dict[str, Any]:
         info = plistlib.loads(archive.read(info_path))
         bundle_id = info.get("CFBundleIdentifier")
         bundle_name = info.get("CFBundleName")
+        design_requires_compatibility = (
+            info.get("UIDesignRequiresCompatibility") is True
+        )
         schemes = sorted(
             {
                 scheme
@@ -280,7 +284,10 @@ def inspect_coexist(path: str | Path) -> dict[str, Any]:
             and not scheme_collisions
             and not extensions
             and not signing_residue
+            and not design_requires_compatibility
         ),
+        "native_liquid_glass_ready": not design_requires_compatibility,
+        "design_requires_compatibility": design_requires_compatibility,
         "bundle_id": bundle_id,
         "bundle_name": bundle_name,
         "developer_app_id_name_ready": developer_app_id_name_ready,

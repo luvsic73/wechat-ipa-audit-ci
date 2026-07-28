@@ -11,6 +11,31 @@ from wechat_ipa_audit.reference_candidate import (
 
 
 class ReferenceCandidateTests(unittest.TestCase):
+    def test_build_uses_clean_coexist_baseline_and_unpatched_loader(
+        self,
+    ) -> None:
+        root = Path(__file__).resolve().parents[1]
+        script = (
+            root / "scripts" / "build-reference-candidate.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertLess(
+            script.index("cli coexist"),
+            script.index("cli package"),
+        )
+        self.assertLess(
+            script.index("cli package"),
+            script.index("cli inject"),
+        )
+        self.assertIn(
+            'Join-Path $projectRoot "data\\modules.json"',
+            script,
+        )
+        self.assertNotIn("prepare-glass-loader", script)
+        self.assertIn("$coexistBase $candidateIpa", script)
+        self.assertIn("candidate-policy", script)
+        self.assertIn("inspect-coexist", script)
+
     def test_disables_only_duplicate_settings_installation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

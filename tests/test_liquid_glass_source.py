@@ -28,12 +28,16 @@ class LiquidGlassSourceTests(unittest.TestCase):
         )
 
         self.assertIn('NSClassFromString(@"UIGlassEffect")', source)
+        self.assertIn("[effectClass new]", source)
+        self.assertIn('NSSelectorFromString(@"setInteractive:")', source)
+        self.assertNotIn('NSSelectorFromString(@"initWithStyle:")', source)
         self.assertIn("UIBlurEffectStyleSystemMaterial", source)
         self.assertIn("UIVisualEffectView", source)
-        self.assertIn("UINavigationBarAppearance", source)
-        self.assertIn("UITabBarAppearance", source)
-        self.assertIn("UIToolbarAppearance", source)
-        self.assertNotIn("backgroundEffect = WMGlassEffect()", source)
+        self.assertNotIn("UINavigationBarAppearance", source)
+        self.assertNotIn("UITabBarAppearance", source)
+        self.assertNotIn("UIToolbarAppearance", source)
+        self.assertNotIn("UINavigationBar.appearance", source)
+        self.assertNotIn("WMGlassifyViewTree", source)
         self.assertIn("WMLiquidGlassStyle.m", build_script)
 
 

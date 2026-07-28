@@ -4,6 +4,18 @@
 
 #import "../WeChatMods/WMLoginLayoutAdapter.h"
 
+@interface MMUINavigationBar : UIView
+@end
+
+@implementation MMUINavigationBar
+@end
+
+@interface MMTabBar : UIView
+@end
+
+@implementation MMTabBar
+@end
+
 @interface WCTableViewNormalCellManager : NSObject
 @property(nonatomic) SEL action;
 @property(nonatomic, weak) id target;
@@ -212,6 +224,51 @@
         [stack.centerYAnchor
             constraintEqualToAnchor:self.view.centerYAnchor]
     ]];
+
+    MMUINavigationBar *customNavigation = [MMUINavigationBar new];
+    customNavigation.translatesAutoresizingMaskIntoConstraints = NO;
+    customNavigation.layer.cornerRadius = 22.0;
+    customNavigation.clipsToBounds = YES;
+    UILabel *navigationLabel = [UILabel new];
+    navigationLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    navigationLabel.text = @"原生自定义玻璃导航";
+    [customNavigation addSubview:navigationLabel];
+
+    MMTabBar *customControl = [MMTabBar new];
+    customControl.translatesAutoresizingMaskIntoConstraints = NO;
+    customControl.layer.cornerRadius = 22.0;
+    customControl.clipsToBounds = YES;
+    UILabel *controlLabel = [UILabel new];
+    controlLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    controlLabel.text = @"原生自定义玻璃控制";
+    [customControl addSubview:controlLabel];
+
+    [self.view addSubview:customNavigation];
+    [self.view addSubview:customControl];
+    [NSLayoutConstraint activateConstraints:@[
+        [customNavigation.topAnchor
+            constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor
+                           constant:64.0],
+        [customNavigation.centerXAnchor
+            constraintEqualToAnchor:self.view.centerXAnchor],
+        [customNavigation.widthAnchor constraintEqualToConstant:240.0],
+        [customNavigation.heightAnchor constraintEqualToConstant:44.0],
+        [navigationLabel.centerXAnchor
+            constraintEqualToAnchor:customNavigation.centerXAnchor],
+        [navigationLabel.centerYAnchor
+            constraintEqualToAnchor:customNavigation.centerYAnchor],
+        [customControl.bottomAnchor
+            constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor
+                           constant:-112.0],
+        [customControl.centerXAnchor
+            constraintEqualToAnchor:self.view.centerXAnchor],
+        [customControl.widthAnchor constraintEqualToConstant:240.0],
+        [customControl.heightAnchor constraintEqualToConstant:44.0],
+        [controlLabel.centerXAnchor
+            constraintEqualToAnchor:customControl.centerXAnchor],
+        [controlLabel.centerYAnchor
+            constraintEqualToAnchor:customControl.centerYAnchor]
+    ]];
 }
 
 @end
@@ -344,17 +401,6 @@ static void WMWriteDiagnostics(
                     @"WMSettingsViewController"
                 )
             ];
-            NSInteger glassEffectCount =
-                WMCountGlassEffects(window);
-            NSInteger glassBackdropCount =
-                WMCountViewsWithIdentifier(
-                    window,
-                    @"wechatmods.liquid-glass-backdrop"
-                );
-            NSMutableOrderedSet<NSString *> *effectClassNames =
-                [NSMutableOrderedSet orderedSet];
-            WMCollectEffectClassNames(window, effectClassNames);
-
             UITabBarController *tabs =
                 (UITabBarController *)window.rootViewController;
             tabs.selectedIndex = 1;
@@ -370,6 +416,19 @@ static void WMWriteDiagnostics(
                 ^{
                     [window layoutIfNeeded];
                     [loginController.view layoutIfNeeded];
+                    NSInteger glassEffectCount =
+                        WMCountGlassEffects(window);
+                    NSInteger glassBackdropCount =
+                        WMCountViewsWithIdentifier(
+                            window,
+                            @"wechatmods.liquid-glass-backdrop"
+                        );
+                    NSMutableOrderedSet<NSString *> *effectClassNames =
+                        [NSMutableOrderedSet orderedSet];
+                    WMCollectEffectClassNames(
+                        window,
+                        effectClassNames
+                    );
                     UIView *extension = WMFindView(
                         loginController.view,
                         @"wechatmods.login-background-extension"
@@ -385,8 +444,9 @@ static void WMWriteDiagnostics(
                         UIScreen.mainScreen.bounds;
                     Class glassEffectClass =
                         NSClassFromString(@"UIGlassEffect");
-                    SEL glassInitializer =
-                        NSSelectorFromString(@"initWithStyle:");
+                    id defaultGlassEffect = glassEffectClass == Nil
+                        ? nil
+                        : [glassEffectClass new];
                     NSDictionary *diagnostics = @{
                         @"loader_constructor_ran": @(
                             [NSUserDefaults.standardUserDefaults
@@ -406,11 +466,9 @@ static void WMWriteDiagnostics(
                         @"glass_effect_api_available": @(
                             glassEffectClass != Nil
                         ),
-                        @"glass_effect_initializer_available": @(
-                            glassEffectClass != Nil &&
-                            [glassEffectClass
-                                instancesRespondToSelector:
-                                    glassInitializer]
+                        @"glass_effect_default_initializer_available": @(
+                            [defaultGlassEffect
+                                isKindOfClass:UIVisualEffect.class]
                         ),
                         @"glass_effect_class_names":
                             effectClassNames.array,

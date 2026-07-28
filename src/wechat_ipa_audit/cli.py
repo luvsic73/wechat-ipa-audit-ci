@@ -8,11 +8,13 @@ from typing import Any
 from .account_safety import assess_account_safety
 from .app_icon import replace_app_icon
 from .audit import audit_ipa
+from .candidate_policy import inspect_candidate_policy
 from .coexist import inspect_coexist, make_coexist_ipa
 from .deep_scan import scan_ipa_members
 from .diffing import diff_reports
 from .inventory import select_current_targets
 from .inject import inject_loader
+from .loader_policy import inspect_loader_policy
 from .packaging import package_all_disabled, verify_package
 from .reference_candidate import prepare_glass_loader
 
@@ -74,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
     coexist.add_argument("--keep-extensions", action="store_true")
     coexist.add_argument("--report")
 
+    inspect_coexist_command = commands.add_parser("inspect-coexist")
+    inspect_coexist_command.add_argument("ipa")
+    inspect_coexist_command.add_argument("--output")
+
     icon = commands.add_parser("icon")
     icon.add_argument("input_ipa")
     icon.add_argument("master_png")
@@ -90,6 +96,15 @@ def build_parser() -> argparse.ArgumentParser:
     account_safety.add_argument("baseline_ipa")
     account_safety.add_argument("candidate_ipa")
     account_safety.add_argument("--output")
+
+    candidate_policy = commands.add_parser("candidate-policy")
+    candidate_policy.add_argument("baseline_ipa")
+    candidate_policy.add_argument("candidate_ipa")
+    candidate_policy.add_argument("--output")
+
+    loader_policy = commands.add_parser("loader-policy")
+    loader_policy.add_argument("loader")
+    loader_policy.add_argument("--output")
 
     verify = commands.add_parser("verify")
     verify.add_argument("ipa")
@@ -140,6 +155,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.report:
             _write_json(inspect_coexist(args.output_ipa), args.report)
+    elif args.command == "inspect-coexist":
+        result = inspect_coexist(args.ipa)
+        _write_json(result, args.output)
+        return 0 if result["coexist_ready"] else 1
     elif args.command == "icon":
         _write_json(
             replace_app_icon(
@@ -165,6 +184,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         _write_json(result, args.output)
         return 1 if result["release_blocked"] else 0
+    elif args.command == "candidate-policy":
+        result = inspect_candidate_policy(
+            args.baseline_ipa,
+            args.candidate_ipa,
+        )
+        _write_json(result, args.output)
+        return 0 if result["valid"] else 1
+    elif args.command == "loader-policy":
+        result = inspect_loader_policy(args.loader)
+        _write_json(result, args.output)
+        return 0 if result["valid"] else 1
     elif args.command == "verify":
         result = verify_package(args.ipa)
         _write_json(result, args.output)

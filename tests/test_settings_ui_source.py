@@ -62,10 +62,14 @@ class SettingsUISourceTests(unittest.TestCase):
 
         self.assertIn("UIWindowDidBecomeVisibleNotification", source)
         self.assertIn('NSSelectorFromString(@"didMoveToWindow")', source)
+        self.assertIn('NSSelectorFromString(@"layoutSubviews")', source)
+        self.assertIn("WMRefreshVisibleLayouts", source)
         self.assertIn('NSClassFromString(@"MMUINavigationBar")', source)
         self.assertIn('NSClassFromString(@"MMTabBar")', source)
         self.assertIn("WMCustomNavigationHookInstalled", source)
         self.assertIn("WMInstallDynamicBarHooks();", source)
+        self.assertNotIn("WMGlassifyWindows", source)
+        self.assertNotIn("UINavigationBar.appearance", source)
         self.assertNotIn("WMInstallWindowGlassChrome", source)
         self.assertNotIn("WMInstallWindowEdgeGlass", source)
 
@@ -91,9 +95,9 @@ class SettingsUISourceTests(unittest.TestCase):
         bootstrap = (
             ROOT / "ios" / "WeChatMods" / "WeChatModsBootstrap.m"
         ).read_text(encoding="utf-8")
-        self.assertNotIn("WMLoginLayoutAdapter.m", build_script)
+        self.assertIn("WMLoginLayoutAdapter.m", build_script)
         self.assertIn("WMLoginLayoutAdapter.m", simulator_script)
-        self.assertNotIn("[WMLoginLayoutAdapter install]", bootstrap)
+        self.assertIn("[WMLoginLayoutAdapter install]", bootstrap)
 
     def test_loader_build_includes_settings_sources(self) -> None:
         build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
@@ -125,16 +129,25 @@ class SettingsUISourceTests(unittest.TestCase):
             "glass_effect_count",
             "glass_backdrop_count",
             "glass_effect_api_available",
+            "glass_effect_default_initializer_available",
             "glass_effect_class_names",
             "window_matches_screen",
             "content_reaches_top_edge",
             "content_reaches_bottom_edge",
         ):
             self.assertIn(key, host)
+        self.assertIn("@interface MMUINavigationBar : UIView", host)
+        self.assertIn("@interface MMTabBar : UIView", host)
+        self.assertLess(
+            host.index("tabs.selectedIndex = 1;"),
+            host.index("WMCountGlassEffects(window)"),
+        )
         self.assertIn("iPhone 17 Pro Max", script)
         self.assertIn("TARGET_RUNTIME_VERSION", script)
         self.assertIn("simctl", script)
         self.assertIn("SimulatorHostDiagnostics.json", script)
+        self.assertIn('data.get("glass_effect_count", 0) < 2', script)
+        self.assertIn('data.get("glass_backdrop_count", 0) < 2', script)
         self.assertIn("simulator-ui", workflow)
 
 

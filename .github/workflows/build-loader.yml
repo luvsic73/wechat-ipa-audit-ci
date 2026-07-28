@@ -20,7 +20,9 @@ jobs:
           python -m unittest discover -s tests -v
 
   build:
-    runs-on: macos-15
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - name: Build arm64 iOS loader

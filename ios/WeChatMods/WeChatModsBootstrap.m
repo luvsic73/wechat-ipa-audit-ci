@@ -3,6 +3,7 @@
 
 #import "WMFeatureStore.h"
 #import "WMLiquidGlassStyle.h"
+#import "WMLoginLayoutAdapter.h"
 #import "WMModuleDescriptor.h"
 #import "WMModuleRuntime.h"
 #import "WMSafeModeController.h"
@@ -38,6 +39,7 @@ static NSArray<WMModuleDescriptor *> *WMLoadDescriptors(void) {
 
 static void WMBootstrap(void) {
     [WMLiquidGlassStyle install];
+    [WMLoginLayoutAdapter install];
     [WMSettingsEntry install];
 
     NSArray<WMModuleDescriptor *> *descriptors = WMLoadDescriptors();

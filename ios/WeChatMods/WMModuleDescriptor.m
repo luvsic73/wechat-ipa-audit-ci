@@ -1,20 +1,7 @@
 #import "WMModuleDescriptor.h"
 
-static NSArray<NSString *> *WMBlockedHookFragments(void) {
-    return @[
-        @"Login",
-        @"Auth",
-        @"Credential",
-        @"Keychain",
-        @"ManualAuthAesReqData",
-        @"Pay",
-        @"Payment",
-        @"Session",
-        @"setBundleId:",
-        @"setClientSeqId:",
-        @"setDeviceName:",
-        @"JailBreakHelper"
-    ];
+static NSSet<NSString *> *WMAllowedHooks(void) {
+    return [NSSet setWithObject:@"CMessageMgr.onRevokeMsg:"];
 }
 
 @implementation WMModuleDescriptor
@@ -54,11 +41,8 @@ static NSArray<NSString *> *WMBlockedHookFragments(void) {
 
 - (BOOL)passesHookPolicy {
     for (NSString *hook in self.hooks) {
-        for (NSString *blocked in WMBlockedHookFragments()) {
-            if ([hook rangeOfString:blocked
-                            options:NSCaseInsensitiveSearch].location != NSNotFound) {
-                return NO;
-            }
+        if (![WMAllowedHooks() containsObject:hook]) {
+            return NO;
         }
     }
     return YES;

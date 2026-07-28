@@ -120,7 +120,7 @@ class AccountSafetyTests(unittest.TestCase):
                 script,
             )
 
-    def test_runtime_hook_policy_names_account_identity_boundaries(
+    def test_runtime_hook_policy_uses_a_positive_allowlist(
         self,
     ) -> None:
         source = (
@@ -130,6 +130,8 @@ class AccountSafetyTests(unittest.TestCase):
             / "WMModuleDescriptor.m"
         ).read_text(encoding="utf-8")
 
+        self.assertIn('@"CMessageMgr.onRevokeMsg:"', source)
+        self.assertIn("containsObject:hook", source)
         for marker in (
             "ManualAuthAesReqData",
             "setBundleId:",
@@ -137,7 +139,7 @@ class AccountSafetyTests(unittest.TestCase):
             "setDeviceName:",
             "JailBreakHelper",
         ):
-            self.assertIn(marker, source)
+            self.assertNotIn(marker, source)
 
 
 if __name__ == "__main__":

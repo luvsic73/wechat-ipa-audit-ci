@@ -157,6 +157,7 @@ class CoexistPackagingTests(unittest.TestCase):
                 "CFBundleExecutable": "WeChat",
                 "CFBundleName": "微信",
                 "CFBundleDisplayName": "微信",
+                "UIDesignRequiresCompatibility": True,
                 "CFBundleURLTypes": [
                     {"CFBundleURLSchemes": ["wechat", "weixin", "prefs"]}
                 ],
@@ -219,6 +220,7 @@ class CoexistPackagingTests(unittest.TestCase):
         )
         self.assertEqual(rewritten["CFBundleName"], "WeChatGlass")
         self.assertEqual(rewritten["CFBundleDisplayName"], "微信 Glass")
+        self.assertNotIn("UIDesignRequiresCompatibility", rewritten)
         self.assertEqual(
             rewritten["CFBundleURLTypes"][0]["CFBundleURLSchemes"],
             [
@@ -239,6 +241,8 @@ class CoexistPackagingTests(unittest.TestCase):
             any(name.endswith("embedded.mobileprovision") for name in names)
         )
         self.assertTrue(inspection["coexist_ready"])
+        self.assertTrue(inspection["native_liquid_glass_ready"])
+        self.assertFalse(inspection["design_requires_compatibility"])
         self.assertTrue(inspection["developer_app_id_name_ready"])
         self.assertEqual(inspection["bundle_name"], "WeChatGlass")
         self.assertEqual(inspection["extensions"], [])

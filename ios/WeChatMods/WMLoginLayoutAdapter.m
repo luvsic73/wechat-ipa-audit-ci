@@ -112,7 +112,10 @@ static UIView *WMLoginBackgroundExtension(UIViewController *controller) {
 static void WMApplyLoginLayout(UIViewController *controller) {
     controller.edgesForExtendedLayout = UIRectEdgeAll;
     controller.extendedLayoutIncludesOpaqueBars = YES;
+    controller.additionalSafeAreaInsets = UIEdgeInsetsZero;
     controller.view.clipsToBounds = NO;
+    controller.view.insetsLayoutMarginsFromSafeArea = NO;
+    controller.view.preservesSuperviewLayoutMargins = NO;
     UINavigationBar *navigationBar =
         controller.navigationController.navigationBar;
     navigationBar.translucent = YES;
