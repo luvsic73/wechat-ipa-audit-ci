@@ -2,16 +2,6 @@ name: build-loader
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "assets/**"
-      - "ios/**"
-      - "scripts/**"
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - ".github/workflows/build-loader.yml"
 
 jobs:
   test:
