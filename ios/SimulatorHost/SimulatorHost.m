@@ -2,6 +2,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
 
+#import "../WeChatMods/WMLocalization.h"
 #import "../WeChatMods/WMLoginLayoutAdapter.h"
 
 @interface MMUINavigationBar : UIView
@@ -195,13 +196,74 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"登录布局（零账号夹具）";
-    self.view.backgroundColor = UIColor.systemTealColor;
+    self.view.backgroundColor = UIColor.systemBackgroundColor;
+
+    UIStackView *glassTestContent =
+        [[UIStackView alloc] initWithFrame:CGRectZero];
+    glassTestContent.axis = UILayoutConstraintAxisVertical;
+    glassTestContent.distribution =
+        UIStackViewDistributionEqualSpacing;
+    glassTestContent.translatesAutoresizingMaskIntoConstraints = NO;
+    glassTestContent.accessibilityElementsHidden = YES;
+    NSArray<UIColor *> *colors = @[
+        UIColor.systemPinkColor,
+        UIColor.systemIndigoColor,
+        UIColor.systemOrangeColor,
+        UIColor.systemGreenColor,
+    ];
+    NSArray<NSString *> *labels = @[
+        @"滚动内容 A",
+        @"滚动内容 B",
+        @"滚动内容 C",
+        @"滚动内容 D",
+    ];
+    for (NSUInteger index = 0; index < colors.count; index++) {
+        UIView *card = [UIView new];
+        card.backgroundColor = [colors[index] colorWithAlphaComponent:0.72];
+        card.layer.cornerRadius = 28.0;
+        card.accessibilityIdentifier = [NSString stringWithFormat:
+            @"wechatmods.glass-test-content.%lu",
+            (unsigned long)index
+        ];
+        UILabel *cardLabel = [UILabel new];
+        cardLabel.translatesAutoresizingMaskIntoConstraints = NO;
+        cardLabel.text = labels[index];
+        cardLabel.font = [UIFont
+            preferredFontForTextStyle:UIFontTextStyleTitle2];
+        cardLabel.adjustsFontForContentSizeCategory = YES;
+        cardLabel.textColor = UIColor.labelColor;
+        [card addSubview:cardLabel];
+        [NSLayoutConstraint activateConstraints:@[
+            [card.heightAnchor constraintEqualToConstant:96.0],
+            [cardLabel.centerXAnchor
+                constraintEqualToAnchor:card.centerXAnchor],
+            [cardLabel.centerYAnchor
+                constraintEqualToAnchor:card.centerYAnchor]
+        ]];
+        [glassTestContent addArrangedSubview:card];
+    }
+    [self.view addSubview:glassTestContent];
+    [NSLayoutConstraint activateConstraints:@[
+        [glassTestContent.leadingAnchor
+            constraintEqualToAnchor:self.view.leadingAnchor
+                           constant:28.0],
+        [glassTestContent.trailingAnchor
+            constraintEqualToAnchor:self.view.trailingAnchor
+                           constant:-28.0],
+        [glassTestContent.topAnchor
+            constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor
+                           constant:24.0],
+        [glassTestContent.bottomAnchor
+            constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor
+                           constant:-24.0]
+    ]];
 
     UIStackView *stack = [[UIStackView alloc] initWithFrame:CGRectZero];
     stack.axis = UILayoutConstraintAxisVertical;
     stack.spacing = 12.0;
     stack.alignment = UIStackViewAlignmentCenter;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
+    stack.accessibilityIdentifier = @"wechatmods.login-content";
 
     UIImageView *symbol = [[UIImageView alloc]
         initWithImage:[UIImage systemImageNamed:@"qrcode.viewfinder"]];
@@ -232,6 +294,9 @@
     UILabel *navigationLabel = [UILabel new];
     navigationLabel.translatesAutoresizingMaskIntoConstraints = NO;
     navigationLabel.text = @"原生自定义玻璃导航";
+    navigationLabel.font = [UIFont
+        preferredFontForTextStyle:UIFontTextStyleBody];
+    navigationLabel.adjustsFontForContentSizeCategory = YES;
     [customNavigation addSubview:navigationLabel];
 
     MMTabBar *customControl = [MMTabBar new];
@@ -241,6 +306,9 @@
     UILabel *controlLabel = [UILabel new];
     controlLabel.translatesAutoresizingMaskIntoConstraints = NO;
     controlLabel.text = @"原生自定义玻璃控制";
+    controlLabel.font = [UIFont
+        preferredFontForTextStyle:UIFontTextStyleBody];
+    controlLabel.adjustsFontForContentSizeCategory = YES;
     [customControl addSubview:controlLabel];
 
     [self.view addSubview:customNavigation];
@@ -305,6 +373,18 @@ static NSInteger WMCountViewsWithIdentifier(
     return count;
 }
 
+static NSInteger WMCountViewsWithIdentifierPrefix(
+    UIView *view,
+    NSString *prefix
+) {
+    NSInteger count = [view.accessibilityIdentifier
+        hasPrefix:prefix] ? 1 : 0;
+    for (UIView *subview in view.subviews) {
+        count += WMCountViewsWithIdentifierPrefix(subview, prefix);
+    }
+    return count;
+}
+
 static void WMCollectEffectClassNames(
     UIView *view,
     NSMutableOrderedSet<NSString *> *names
@@ -355,9 +435,13 @@ static NSInteger WMSettingsEntryCount(
     WCTableViewManager *manager
 ) {
     NSInteger count = 0;
+    NSString *settingsTitle = WMLocalizedString(
+        @"wechatmods.settings.title",
+        @"微信 Glass"
+    );
     for (WCTableViewSectionManager *section in manager.sections) {
         for (WCTableViewNormalCellManager *cell in section.cells) {
-            if ([cell.title isEqualToString:@"微信 Glass"]) {
+            if ([cell.title isEqualToString:settingsTitle]) {
                 count += 1;
             }
         }
@@ -371,6 +455,82 @@ static BOOL WMRectNearlyEqual(CGRect left, CGRect right) {
         fabs(CGRectGetMinY(left) - CGRectGetMinY(right)) <= tolerance &&
         fabs(CGRectGetWidth(left) - CGRectGetWidth(right)) <= tolerance &&
         fabs(CGRectGetHeight(left) - CGRectGetHeight(right)) <= tolerance;
+}
+
+static BOOL WMInsetsNearlyEqual(
+    UIEdgeInsets left,
+    UIEdgeInsets right
+) {
+    CGFloat tolerance = 0.5;
+    return fabs(left.top - right.top) <= tolerance &&
+        fabs(left.left - right.left) <= tolerance &&
+        fabs(left.bottom - right.bottom) <= tolerance &&
+        fabs(left.right - right.right) <= tolerance;
+}
+
+static NSDictionary<NSString *, NSNumber *> *
+WMSettingsAccessibilityMetrics(UIViewController *controller) {
+    if (![controller isKindOfClass:UITableViewController.class]) {
+        return @{
+            @"switch_count": @0,
+            @"switch_hint_count": @0,
+            @"multiline_detail_count": @0,
+        };
+    }
+    UITableView *tableView =
+        ((UITableViewController *)controller).tableView;
+    id<UITableViewDataSource> dataSource = tableView.dataSource;
+    NSInteger sectionCount = [dataSource
+        numberOfSectionsInTableView:tableView];
+    NSInteger switchCount = 0;
+    NSInteger switchHintCount = 0;
+    NSInteger multilineDetailCount = 0;
+    for (NSInteger section = 0; section < sectionCount; section++) {
+        NSInteger rowCount = [dataSource
+            tableView:tableView
+            numberOfRowsInSection:section];
+        for (NSInteger row = 0; row < rowCount; row++) {
+            NSIndexPath *indexPath = [NSIndexPath
+                indexPathForRow:row
+                      inSection:section];
+            UITableViewCell *cell = [dataSource
+                tableView:tableView
+                cellForRowAtIndexPath:indexPath];
+            if ([cell.accessoryView isKindOfClass:UISwitch.class]) {
+                UISwitch *toggle = (UISwitch *)cell.accessoryView;
+                switchCount += 1;
+                switchHintCount +=
+                    toggle.accessibilityHint.length > 0 ? 1 : 0;
+                multilineDetailCount +=
+                    cell.detailTextLabel.numberOfLines == 0 ? 1 : 0;
+            }
+        }
+    }
+    return @{
+        @"switch_count": @(switchCount),
+        @"switch_hint_count": @(switchHintCount),
+        @"multiline_detail_count": @(multilineDetailCount),
+    };
+}
+
+static BOOL WMWriteSnapshot(UIView *view, NSString *fileName) {
+    UIGraphicsImageRenderer *renderer = [
+        [UIGraphicsImageRenderer alloc]
+        initWithBounds:view.bounds
+    ];
+    UIImage *image = [renderer imageWithActions:^(
+        UIGraphicsImageRendererContext *context
+    ) {
+        [view drawViewHierarchyInRect:view.bounds
+                  afterScreenUpdates:YES];
+    }];
+    NSData *png = UIImagePNGRepresentation(image);
+    NSURL *documents = [[NSFileManager defaultManager]
+        URLsForDirectory:NSDocumentDirectory
+               inDomains:NSUserDomainMask].firstObject;
+    return png != nil && [png writeToURL:[
+        documents URLByAppendingPathComponent:fileName
+    ] atomically:YES];
 }
 
 static void WMWriteDiagnostics(
@@ -401,6 +561,18 @@ static void WMWriteDiagnostics(
                     @"WMSettingsViewController"
                 )
             ];
+            UIViewController *settingsViewController =
+                settingsNavigation.topViewController;
+            [window layoutIfNeeded];
+            NSDictionary<NSString *, NSNumber *> *
+                accessibilityMetrics =
+                    WMSettingsAccessibilityMetrics(
+                        settingsViewController
+                    );
+            BOOL settingsSnapshotWritten = WMWriteSnapshot(
+                window,
+                @"SimulatorHostSettings.png"
+            );
             UITabBarController *tabs =
                 (UITabBarController *)window.rootViewController;
             tabs.selectedIndex = 1;
@@ -423,6 +595,11 @@ static void WMWriteDiagnostics(
                             window,
                             @"wechatmods.liquid-glass-backdrop"
                         );
+                    NSInteger glassTestContentCount =
+                        WMCountViewsWithIdentifierPrefix(
+                            loginController.view,
+                            @"wechatmods.glass-test-content."
+                        );
                     NSMutableOrderedSet<NSString *> *effectClassNames =
                         [NSMutableOrderedSet orderedSet];
                     WMCollectEffectClassNames(
@@ -440,6 +617,32 @@ static void WMWriteDiagnostics(
                                  toView:loginController.view];
                     CGRect loginBounds =
                         loginController.view.bounds;
+                    UIView *loginContent = WMFindView(
+                        loginController.view,
+                        @"wechatmods.login-content"
+                    );
+                    CGRect loginContentFrame = loginContent == nil
+                        ? CGRectNull
+                        : [loginContent.superview
+                            convertRect:loginContent.frame
+                                 toView:loginController.view];
+                    CGRect loginSafeRect = UIEdgeInsetsInsetRect(
+                        loginBounds,
+                        loginController.view.safeAreaInsets
+                    );
+                    BOOL loginContentInsideSafeArea =
+                        loginContent != nil &&
+                        CGRectContainsRect(
+                            CGRectInset(loginSafeRect, -1.0, -1.0),
+                            loginContentFrame
+                        );
+                    UIEdgeInsets expectedAdditionalInsets =
+                        UIEdgeInsetsMake(7.0, 3.0, 11.0, 5.0);
+                    BOOL additionalSafeAreaPreserved =
+                        WMInsetsNearlyEqual(
+                            loginController.additionalSafeAreaInsets,
+                            expectedAdditionalInsets
+                        );
                     CGRect screenBounds =
                         UIScreen.mainScreen.bounds;
                     Class glassEffectClass =
@@ -457,11 +660,25 @@ static void WMWriteDiagnostics(
                         @"settings_controller_opened": @(
                             settingsOpened
                         ),
+                        @"settings_snapshot_written": @(
+                            settingsSnapshotWritten
+                        ),
+                        @"settings_switch_count":
+                            accessibilityMetrics[@"switch_count"],
+                        @"settings_switches_with_hints":
+                            accessibilityMetrics[@"switch_hint_count"],
+                        @"settings_multiline_details":
+                            accessibilityMetrics[
+                                @"multiline_detail_count"
+                            ],
                         @"glass_effect_count": @(
                             glassEffectCount
                         ),
                         @"glass_backdrop_count": @(
                             glassBackdropCount
+                        ),
+                        @"glass_test_content_count": @(
+                            glassTestContentCount
                         ),
                         @"glass_effect_api_available": @(
                             glassEffectClass != Nil
@@ -487,6 +704,16 @@ static void WMWriteDiagnostics(
                             CGRectGetMaxY(extensionFrame) >=
                                 CGRectGetHeight(loginBounds) - 1.0
                         ),
+                        @"login_additional_safe_area_preserved": @(
+                            additionalSafeAreaPreserved
+                        ),
+                        @"login_content_inside_safe_area": @(
+                            loginContentInsideSafeArea
+                        ),
+                        @"login_content_frame":
+                            WMRectComponents(loginContentFrame),
+                        @"login_safe_rect":
+                            WMRectComponents(loginSafeRect),
                         @"extension_frame":
                             WMRectComponents(extensionFrame),
                         @"login_bounds":
@@ -563,6 +790,8 @@ static void WMWriteDiagnostics(
 
     self.loginController =
         [WCAccountLoginByQRCodeViewController new];
+    self.loginController.additionalSafeAreaInsets =
+        UIEdgeInsetsMake(7.0, 3.0, 11.0, 5.0);
     self.loginController.tabBarItem =
         [[UITabBarItem alloc]
             initWithTitle:@"登录布局"

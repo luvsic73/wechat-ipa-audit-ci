@@ -4,6 +4,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 
+#import "WMLocalization.h"
 #import "WMSettingsViewController.h"
 
 static IMP WMOriginalSettingsViewDidLoad = NULL;
@@ -77,7 +78,10 @@ static void WMInsertSettingsRow(id object) {
         cellFactory,
         NSSelectorFromString(@"wm_openWeChatModsSettings"),
         object,
-        @"微信 Glass",
+        WMLocalizedString(
+            @"wechatmods.settings.title",
+            @"微信 Glass"
+        ),
         UITableViewCellAccessoryDisclosureIndicator
     );
     if (cell == nil) {

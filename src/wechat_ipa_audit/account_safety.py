@@ -47,6 +47,14 @@ def _member_sha256(archive: zipfile.ZipFile, name: str) -> str:
     return digest.hexdigest()
 
 
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _is_executable_component(name: str, app_prefix: str) -> bool:
     if not name.startswith(app_prefix) or name.endswith("/"):
         return False
@@ -91,9 +99,29 @@ def _scan_member_markers(
 def assess_account_safety(
     baseline_ipa: str | Path,
     candidate_ipa: str | Path,
+    *,
+    expected_bundle_id: str | None = None,
+    trusted_loader: str | Path | None = None,
 ) -> dict[str, Any]:
     baseline_path = Path(baseline_ipa).resolve()
     candidate_path = Path(candidate_ipa).resolve()
+    trusted_loader_path = (
+        Path(trusted_loader).resolve()
+        if trusted_loader is not None
+        else None
+    )
+    trusted_loader_sha256 = (
+        _file_sha256(trusted_loader_path)
+        if trusted_loader_path is not None
+        else None
+    )
+    trusted_loader_name = (
+        trusted_loader_path.name
+        if trusted_loader_path is not None
+        else None
+    )
+    trusted_loader_matched = False
+    defensive_loader_hits: list[dict[str, str]] = []
     findings: list[dict[str, Any]] = []
 
     with (
@@ -112,7 +140,7 @@ def assess_account_safety(
             isinstance(baseline_bundle_id, str)
             and baseline_bundle_id == candidate_bundle_id
         )
-        if not identity_consistent:
+        if not identity_consistent and expected_bundle_id is None:
             findings.append(
                 {
                     "code": "bundle_identity_changed",
@@ -122,6 +150,33 @@ def assess_account_safety(
                     "reason": (
                         "The account-facing application identity differs "
                         "from the baseline."
+                    ),
+                }
+            )
+        elif not identity_consistent and candidate_bundle_id != expected_bundle_id:
+            findings.append(
+                {
+                    "code": "bundle_identity_unexpected",
+                    "severity": "critical",
+                    "baseline": baseline_bundle_id,
+                    "expected": expected_bundle_id,
+                    "candidate": candidate_bundle_id,
+                    "reason": (
+                        "The candidate identity does not match the declared "
+                        "coexist application identity."
+                    ),
+                }
+            )
+        elif not identity_consistent:
+            findings.append(
+                {
+                    "code": "declared_coexist_identity_change",
+                    "severity": "high",
+                    "baseline": baseline_bundle_id,
+                    "candidate": candidate_bundle_id,
+                    "reason": (
+                        "The candidate uses the exact application identity "
+                        "declared by the coexist build."
                     ),
                 }
             )
@@ -165,11 +220,32 @@ def assess_account_safety(
                 }
             )
 
-        forbidden_hits = [
-            hit
-            for name in changed_components
-            for hit in _scan_member_markers(candidate, name)
-        ]
+        forbidden_hits: list[dict[str, str]] = []
+        for name in changed_components:
+            hits = _scan_member_markers(candidate, name)
+            is_trusted_loader = (
+                trusted_loader_name is not None
+                and Path(name).name == trusted_loader_name
+                and _member_sha256(candidate, name)
+                == trusted_loader_sha256
+            )
+            if is_trusted_loader:
+                trusted_loader_matched = True
+                defensive_loader_hits.extend(hits)
+            else:
+                forbidden_hits.extend(hits)
+        if defensive_loader_hits:
+            findings.append(
+                {
+                    "code": "verified_loader_defensive_markers",
+                    "severity": "info",
+                    "hits": defensive_loader_hits,
+                    "reason": (
+                        "The markers belong to the exact hash-matched "
+                        "loader already accepted by the provenance gate."
+                    ),
+                }
+            )
         if forbidden_hits:
             findings.append(
                 {
@@ -217,11 +293,20 @@ def assess_account_safety(
         "candidate_ipa": str(candidate_path),
         "baseline_bundle_id": baseline_bundle_id,
         "candidate_bundle_id": candidate_bundle_id,
+        "expected_bundle_id": expected_bundle_id,
+        "trusted_loader": (
+            str(trusted_loader_path)
+            if trusted_loader_path is not None
+            else None
+        ),
+        "trusted_loader_sha256": trusted_loader_sha256,
+        "trusted_loader_matched": trusted_loader_matched,
         "identity_consistent": identity_consistent,
         "main_binary_modified": main_binary_modified,
         "added_executable_components": added_components,
         "modified_executable_components": modified_components,
         "forbidden_marker_hits": forbidden_hits,
+        "defensive_loader_marker_hits": defensive_loader_hits,
         "findings": findings,
         "verdict": verdict,
         "release_blocked": release_blocked,

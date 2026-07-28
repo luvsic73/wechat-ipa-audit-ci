@@ -50,10 +50,9 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn("UISwitch", controller)
         self.assertIn('@"更改后重启微信生效"', controller)
         self.assertIn('@"wechatmods.module-overrides"', store)
-        self.assertIn(
-            "isModuleEnabled:descriptor.moduleID",
-            bootstrap,
-        )
+        self.assertIn("prepareForSchemaVersion", bootstrap)
+        self.assertIn("WMFeatureStore.enabledModuleIDs", bootstrap)
+        self.assertNotIn("defaultValue:descriptor.isEnabled", bootstrap)
 
     def test_glass_shell_covers_dynamic_navigation_and_control_bars(self) -> None:
         source = (
@@ -87,6 +86,10 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn('NSClassFromString(@"UIBackgroundExtensionView")', source)
         self.assertIn("edgesForExtendedLayout = UIRectEdgeAll", source)
         self.assertIn("extendedLayoutIncludesOpaqueBars = YES", source)
+        self.assertNotIn("additionalSafeAreaInsets =", source)
+        self.assertNotIn("insetsLayoutMarginsFromSafeArea =", source)
+        self.assertNotIn("preservesSuperviewLayoutMargins =", source)
+        self.assertNotIn('NSSelectorFromString(@"viewDidLayoutSubviews")', source)
         self.assertNotIn("ManualAuthAesReqData", source)
         self.assertNotIn("setBundleId:", source)
         simulator_script = (
@@ -98,6 +101,46 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn("WMLoginLayoutAdapter.m", build_script)
         self.assertIn("WMLoginLayoutAdapter.m", simulator_script)
         self.assertIn("[WMLoginLayoutAdapter install]", bootstrap)
+
+    def test_settings_are_dynamic_type_accessible_and_localized(self) -> None:
+        controller = (
+            ROOT / "ios" / "WeChatMods" / "WMSettingsViewController.m"
+        ).read_text(encoding="utf-8")
+        entry = (
+            ROOT / "ios" / "WeChatMods" / "WMSettingsEntry.m"
+        ).read_text(encoding="utf-8")
+        localization = (
+            ROOT / "ios" / "WeChatMods" / "WMLocalization.m"
+        ).read_text(encoding="utf-8")
+        build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("WMLocalizedString", controller)
+        self.assertIn("WMLocalizedString", entry)
+        self.assertIn('URLForResource:@"WeChatModsLocalization"', localization)
+        self.assertIn('withExtension:@"bundle"', localization)
+        self.assertIn("preferredFontForTextStyle", controller)
+        self.assertIn("detailTextLabel.numberOfLines = 0", controller)
+        self.assertIn("toggle.accessibilityHint", controller)
+        self.assertIn("objc_setAssociatedObject", controller)
+        self.assertIn("UIAccessibilityPostNotification", controller)
+        self.assertNotIn(
+            "descriptorForModuleID:toggle.accessibilityIdentifier",
+            controller,
+        )
+        self.assertIn("WMLocalization.m", build_script)
+        for language in ("zh-Hans", "en"):
+            strings = (
+                ROOT
+                / "ios"
+                / "WeChatMods"
+                / "Resources"
+                / "WeChatModsLocalization.bundle"
+                / f"{language}.lproj"
+                / "Localizable.strings"
+            )
+            self.assertTrue(strings.is_file())
 
     def test_loader_build_includes_settings_sources(self) -> None:
         build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
@@ -126,6 +169,10 @@ class SettingsUISourceTests(unittest.TestCase):
             "loader_constructor_ran",
             "settings_entry_count",
             "settings_controller_opened",
+            "settings_snapshot_written",
+            "settings_switch_count",
+            "settings_switches_with_hints",
+            "settings_multiline_details",
             "glass_effect_count",
             "glass_backdrop_count",
             "glass_effect_api_available",
@@ -134,6 +181,9 @@ class SettingsUISourceTests(unittest.TestCase):
             "window_matches_screen",
             "content_reaches_top_edge",
             "content_reaches_bottom_edge",
+            "login_additional_safe_area_preserved",
+            "login_content_inside_safe_area",
+            "glass_test_content_count",
         ):
             self.assertIn(key, host)
         self.assertIn("@interface MMUINavigationBar : UIView", host)
@@ -144,10 +194,21 @@ class SettingsUISourceTests(unittest.TestCase):
         )
         self.assertIn("iPhone 17 Pro Max", script)
         self.assertIn("TARGET_RUNTIME_VERSION", script)
+        self.assertIn("module-manifest.json", script)
+        self.assertIn("data/modules.json", script)
         self.assertIn("simctl", script)
         self.assertIn("SimulatorHostDiagnostics.json", script)
+        self.assertIn("SimulatorHostSettings.png", script)
+        self.assertIn("seq 1 120", script)
+        self.assertIn("SimulatorHost-launch.log", script)
         self.assertIn('data.get("glass_effect_count", 0) < 2', script)
         self.assertIn('data.get("glass_backdrop_count", 0) < 2', script)
+        self.assertIn(
+            '"login_additional_safe_area_preserved": True',
+            script,
+        )
+        self.assertIn('"login_content_inside_safe_area": True', script)
+        self.assertIn('data.get("glass_test_content_count", 0) < 3', script)
         self.assertIn("simulator-ui", workflow)
 
 

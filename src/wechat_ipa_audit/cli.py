@@ -15,6 +15,11 @@ from .diffing import diff_reports
 from .inventory import select_current_targets
 from .inject import inject_loader
 from .loader_policy import inspect_loader_policy
+from .loader_provenance import (
+    build_loader_provenance,
+    project_loader_sources,
+    verify_loader_provenance,
+)
 from .packaging import package_all_disabled, verify_package
 from .reference_candidate import prepare_glass_loader
 
@@ -95,6 +100,8 @@ def build_parser() -> argparse.ArgumentParser:
     account_safety = commands.add_parser("account-safety")
     account_safety.add_argument("baseline_ipa")
     account_safety.add_argument("candidate_ipa")
+    account_safety.add_argument("--expected-bundle-id")
+    account_safety.add_argument("--trusted-loader")
     account_safety.add_argument("--output")
 
     candidate_policy = commands.add_parser("candidate-policy")
@@ -105,6 +112,15 @@ def build_parser() -> argparse.ArgumentParser:
     loader_policy = commands.add_parser("loader-policy")
     loader_policy.add_argument("loader")
     loader_policy.add_argument("--output")
+
+    write_provenance = commands.add_parser("write-loader-provenance")
+    write_provenance.add_argument("loader")
+    write_provenance.add_argument("output")
+
+    verify_provenance = commands.add_parser("verify-loader-provenance")
+    verify_provenance.add_argument("loader")
+    verify_provenance.add_argument("provenance")
+    verify_provenance.add_argument("--output")
 
     verify = commands.add_parser("verify")
     verify.add_argument("ipa")
@@ -139,8 +155,13 @@ def main(argv: list[str] | None = None) -> int:
             args.output,
         )
     elif args.command == "package":
-        modules = _read_json(args.modules)["modules"]
-        package_all_disabled(args.base_ipa, args.output_ipa, modules)
+        catalog = _read_json(args.modules)
+        package_all_disabled(
+            args.base_ipa,
+            args.output_ipa,
+            catalog["modules"],
+            feature_collection=catalog.get("feature_collection"),
+        )
     elif args.command == "inject":
         inject_loader(args.input_ipa, args.loader, args.output_ipa)
     elif args.command == "coexist":
@@ -181,6 +202,8 @@ def main(argv: list[str] | None = None) -> int:
         result = assess_account_safety(
             args.baseline_ipa,
             args.candidate_ipa,
+            expected_bundle_id=args.expected_bundle_id,
+            trusted_loader=args.trusted_loader,
         )
         _write_json(result, args.output)
         return 1 if result["release_blocked"] else 0
@@ -193,6 +216,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if result["valid"] else 1
     elif args.command == "loader-policy":
         result = inspect_loader_policy(args.loader)
+        _write_json(result, args.output)
+        return 0 if result["valid"] else 1
+    elif args.command == "write-loader-provenance":
+        project_root = Path(__file__).resolve().parents[2]
+        _write_json(
+            build_loader_provenance(
+                args.loader,
+                project_loader_sources(project_root),
+            ),
+            args.output,
+        )
+    elif args.command == "verify-loader-provenance":
+        project_root = Path(__file__).resolve().parents[2]
+        result = verify_loader_provenance(
+            args.loader,
+            _read_json(args.provenance),
+            project_loader_sources(project_root),
+        )
         _write_json(result, args.output)
         return 0 if result["valid"] else 1
     elif args.command == "verify":

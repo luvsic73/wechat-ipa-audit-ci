@@ -37,6 +37,8 @@ try {
     $injectedIpa = Join-Path $staging "02-injected.ipa"
     $candidateIpa = Join-Path $staging "03-candidate.ipa"
 
+    & (Join-Path $PSScriptRoot "assert-loader-current.ps1") -Loader $loader
+
     py -3 -m wechat_ipa_audit.cli loader-policy `
         $loader `
         --output (Join-Path $reportPath "loader-policy.json")
@@ -88,6 +90,7 @@ try {
 
     py -3 -m wechat_ipa_audit.cli account-safety `
         $coexistBase $candidateIpa `
+        --trusted-loader $loader `
         --output (Join-Path $reportPath "candidate-delta.json")
     if ($LASTEXITCODE -ne 0) {
         throw "Reference candidate delta gate failed"

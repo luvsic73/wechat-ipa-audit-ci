@@ -40,6 +40,26 @@ class LiquidGlassSourceTests(unittest.TestCase):
         self.assertNotIn("WMGlassifyViewTree", source)
         self.assertIn("WMLiquidGlassStyle.m", build_script)
 
+    def test_glass_respects_accessibility_and_refreshes_visible_scenes(self) -> None:
+        source = (
+            ROOT / "ios" / "WeChatMods" / "WMLiquidGlassStyle.m"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("UIAccessibilityIsReduceTransparencyEnabled()", source)
+        self.assertIn("UIAccessibilityDarkerSystemColorsEnabled()", source)
+        self.assertIn(
+            "UIAccessibilityReduceTransparencyStatusDidChangeNotification",
+            source,
+        )
+        self.assertIn(
+            "UIAccessibilityDarkerSystemColorsStatusDidChangeNotification",
+            source,
+        )
+        self.assertIn("UIApplication.sharedApplication.connectedScenes", source)
+        self.assertIn("UISceneActivationStateForegroundActive", source)
+        self.assertIn("UIWindowScene", source)
+        self.assertNotIn("UIApplication.sharedApplication.windows", source)
+
 
 if __name__ == "__main__":
     unittest.main()

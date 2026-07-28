@@ -21,6 +21,7 @@ if (-not $DisplayName) {
 if (-not $Loader) {
     $Loader = Join-Path $projectRoot "dist\WeChatMods.dylib"
 }
+& (Join-Path $PSScriptRoot "assert-loader-current.ps1") -Loader $Loader
 $outputPath = [IO.Path]::GetFullPath($OutputIpa)
 if (-not $SafetyReport) {
     $SafetyReport = "$outputPath.account-safety.json"
@@ -55,6 +56,8 @@ try {
     }
     py -3 -m wechat_ipa_audit.cli account-safety `
         $BaseIpa $outputPath `
+        --expected-bundle-id $BundleId `
+        --trusted-loader $Loader `
         --output $safetyReportPath
     if ($LASTEXITCODE -ne 0) {
         Remove-Item -LiteralPath $outputPath -Force `

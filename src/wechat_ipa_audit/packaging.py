@@ -13,6 +13,13 @@ _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
 _MMROUTER_JSC = b"@rpath/JavaScriptCore.framework/JavaScriptCore"
 _JSC_OLD_RPATH = b"@executable_path/PlugIns/WeChatScreenCapture.appex"
 _JSC_NEW_RPATH = b"@executable_path/Frameworks"
+_LOCALIZATION_ROOT = (
+    Path(__file__).resolve().parents[2]
+    / "ios"
+    / "WeChatMods"
+    / "Resources"
+    / "WeChatModsLocalization.bundle"
+)
 
 
 def _manifest_path(archive: zipfile.ZipFile) -> str:
@@ -26,20 +33,31 @@ def package_all_disabled(
     base_ipa: str | Path,
     output_ipa: str | Path,
     modules: list[dict[str, Any]],
+    *,
+    feature_collection: dict[str, Any] | None = None,
 ) -> None:
     base_path = Path(base_ipa)
     output_path = Path(output_ipa)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(base_path) as source:
         manifest_path = _manifest_path(source)
+        app_prefix = manifest_path.split("WeChatMods/", 1)[0]
+        localization_prefix = (
+            app_prefix + "WeChatMods/WeChatModsLocalization.bundle/"
+        )
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2,
             "activation": "restart-required",
             "safe_mode_crash_threshold": 2,
+            "feature_collection": feature_collection
+            or {
+                "included": False,
+                "activation_gate": "not-configured",
+            },
             "modules": [
                 {
                     **{key: value for key, value in module.items() if key != "enabled"},
-                    "enabled": module.get("default_enabled") is True,
+                    "enabled": False,
                 }
                 for module in modules
             ],
@@ -48,7 +66,10 @@ def package_all_disabled(
             output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
         ) as target:
             for member in source.infolist():
-                if member.filename == manifest_path:
+                if (
+                    member.filename == manifest_path
+                    or member.filename.startswith(localization_prefix)
+                ):
                     continue
                 with source.open(member) as input_stream:
                     with target.open(member, "w") as output_stream:
@@ -66,6 +87,16 @@ def package_all_disabled(
                     sort_keys=True,
                 ).encode("utf-8"),
             )
+            if not _LOCALIZATION_ROOT.is_dir():
+                raise FileNotFoundError(
+                    f"localization bundle is missing: {_LOCALIZATION_ROOT}"
+                )
+            for resource in sorted(_LOCALIZATION_ROOT.rglob("*")):
+                if resource.is_file():
+                    archive_name = localization_prefix + resource.relative_to(
+                        _LOCALIZATION_ROOT
+                    ).as_posix()
+                    target.write(resource, archive_name)
 
 
 def verify_package(path: str | Path) -> dict[str, Any]:
@@ -81,6 +112,17 @@ def verify_package(path: str | Path) -> dict[str, Any]:
             (archive.getinfo(loader_path).external_attr >> 16) & 0o111
         )
         names = set(archive.namelist())
+        localization_prefix = (
+            app_prefix + "WeChatMods/WeChatModsLocalization.bundle/"
+        )
+        localization_present = all(
+            localization_prefix + relative in names
+            for relative in (
+                "Info.plist",
+                "en.lproj/Localizable.strings",
+                "zh-Hans.lproj/Localizable.strings",
+            )
+        )
         router_path = app_prefix + "Frameworks/MMRouter.framework/MMRouter"
         runtime_dependency_errors: list[str] = []
         if (
@@ -125,6 +167,7 @@ def verify_package(path: str | Path) -> dict[str, Any]:
             not unexpected_enabled
             and loader_present
             and loader_executable
+            and localization_present
             and runtime_dependencies_resolved
         ),
         "manifest_path": manifest_path,
@@ -133,6 +176,7 @@ def verify_package(path: str | Path) -> dict[str, Any]:
         "unexpected_enabled_modules": unexpected_enabled,
         "loader_present": loader_present,
         "loader_executable": loader_executable,
+        "localization_present": localization_present,
         "runtime_dependencies_resolved": runtime_dependencies_resolved,
         "runtime_dependency_errors": runtime_dependency_errors,
     }

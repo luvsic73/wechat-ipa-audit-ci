@@ -7,8 +7,6 @@
 static void *WMLoginBackgroundKey = &WMLoginBackgroundKey;
 static NSMutableDictionary<NSString *, NSValue *> *
     WMLoginViewDidLoadOriginals;
-static NSMutableDictionary<NSString *, NSValue *> *
-    WMLoginViewDidLayoutOriginals;
 
 static NSArray<NSString *> *WMLoginControllerNames(void) {
     return @[
@@ -112,10 +110,6 @@ static UIView *WMLoginBackgroundExtension(UIViewController *controller) {
 static void WMApplyLoginLayout(UIViewController *controller) {
     controller.edgesForExtendedLayout = UIRectEdgeAll;
     controller.extendedLayoutIncludesOpaqueBars = YES;
-    controller.additionalSafeAreaInsets = UIEdgeInsetsZero;
-    controller.view.clipsToBounds = NO;
-    controller.view.insetsLayoutMarginsFromSafeArea = NO;
-    controller.view.preservesSuperviewLayoutMargins = NO;
     UINavigationBar *navigationBar =
         controller.navigationController.navigationBar;
     navigationBar.translucent = YES;
@@ -125,20 +119,6 @@ static void WMApplyLoginLayout(UIViewController *controller) {
 static void WMLoginViewDidLoad(id object, SEL selector) {
     IMP original = WMOriginalForObject(
         WMLoginViewDidLoadOriginals,
-        object,
-        selector
-    );
-    if (original != NULL) {
-        ((void (*)(id, SEL))original)(object, selector);
-    }
-    if ([object isKindOfClass:UIViewController.class]) {
-        WMApplyLoginLayout(object);
-    }
-}
-
-static void WMLoginViewDidLayoutSubviews(id object, SEL selector) {
-    IMP original = WMOriginalForObject(
-        WMLoginViewDidLayoutOriginals,
         object,
         selector
     );
@@ -185,8 +165,6 @@ static BOOL WMAttemptLoginLayoutInstall(void) {
         if (WMLoginViewDidLoadOriginals == nil) {
             WMLoginViewDidLoadOriginals =
                 [NSMutableDictionary dictionary];
-            WMLoginViewDidLayoutOriginals =
-                [NSMutableDictionary dictionary];
         }
         for (NSString *name in WMLoginControllerNames()) {
             Class targetClass = NSClassFromString(name);
@@ -199,13 +177,7 @@ static BOOL WMAttemptLoginLayoutInstall(void) {
                 (IMP)WMLoginViewDidLoad,
                 WMLoginViewDidLoadOriginals
             );
-            BOOL didLayout = WMInstallLoginHook(
-                targetClass,
-                NSSelectorFromString(@"viewDidLayoutSubviews"),
-                (IMP)WMLoginViewDidLayoutSubviews,
-                WMLoginViewDidLayoutOriginals
-            );
-            installedAny = installedAny || (didLoad && didLayout);
+            installedAny = installedAny || didLoad;
         }
     }
     return installedAny;

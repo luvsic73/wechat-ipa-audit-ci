@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+bash "$ROOT/scripts/fetch-ios-dependencies.sh"
 SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 ARCH="$(uname -m)"
 TARGET_DEVICE_NAME="${TARGET_DEVICE_NAME:-iPhone 17 Pro Max}"
@@ -16,12 +17,19 @@ mkdir -p "$APP" "$ARTIFACTS"
 
 SOURCES=(
   "$ROOT/ios/SimulatorHost/SimulatorHost.m"
+  "$ROOT/vendor/fishhook/fishhook.c"
+  "$ROOT/ios/WeChatMods/WMActivationPlanner.m"
   "$ROOT/ios/WeChatMods/WMAntiRevokeModule.m"
+  "$ROOT/ios/WeChatMods/WMFeatureCollectionAdapter.m"
   "$ROOT/ios/WeChatMods/WMFeatureStore.m"
+  "$ROOT/ios/WeChatMods/WMLocalization.m"
   "$ROOT/ios/WeChatMods/WMLiquidGlassStyle.m"
   "$ROOT/ios/WeChatMods/WMLoginLayoutAdapter.m"
+  "$ROOT/ios/WeChatMods/WMModuleCatalog.m"
   "$ROOT/ios/WeChatMods/WMModuleDescriptor.m"
   "$ROOT/ios/WeChatMods/WMModuleRuntime.m"
+  "$ROOT/ios/WeChatMods/WMPluginNetworkFirewall.m"
+  "$ROOT/ios/WeChatMods/WMRuntimeHookFirewall.m"
   "$ROOT/ios/WeChatMods/WMSafeModeController.m"
   "$ROOT/ios/WeChatMods/WMSettingsEntry.m"
   "$ROOT/ios/WeChatMods/WMSettingsViewController.m"
@@ -37,6 +45,7 @@ xcrun --sdk iphonesimulator clang \
   "${SOURCES[@]}" \
   -framework Foundation \
   -framework UIKit \
+  -framework WebKit \
   -Wl,-dead_strip \
   -o "$APP/SimulatorHost"
 
@@ -61,7 +70,7 @@ cat > "$APP/Info.plist" <<'PLIST'
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0</string>
+  <string>8.0.75</string>
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>LSRequiresIPhoneOS</key>
@@ -79,6 +88,13 @@ cat > "$APP/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+mkdir -p "$APP/WeChatMods"
+cp "$ROOT/data/modules.json" \
+  "$APP/WeChatMods/module-manifest.json"
+cp -R \
+  "$ROOT/ios/WeChatMods/Resources/WeChatModsLocalization.bundle" \
+  "$APP/WeChatMods/WeChatModsLocalization.bundle"
 
 codesign --force --sign - "$APP"
 
@@ -154,14 +170,28 @@ xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID"
 DATA_CONTAINER="$(xcrun simctl get_app_container \
   "$UDID" "$BUNDLE_ID" data)"
 DIAGNOSTICS="$DATA_CONTAINER/Documents/SimulatorHostDiagnostics.json"
-for _ in $(seq 1 40); do
+SETTINGS_SNAPSHOT="$DATA_CONTAINER/Documents/SimulatorHostSettings.png"
+for _ in $(seq 1 120); do
   [[ -s "$DIAGNOSTICS" ]] && break
-  sleep 0.25
+  sleep 0.5
 done
-test -s "$DIAGNOSTICS"
+if [[ ! -s "$DIAGNOSTICS" ]]; then
+  xcrun simctl spawn "$UDID" log show \
+    --style compact \
+    --last 5m \
+    --predicate 'process == "SimulatorHost"' \
+    > "$ARTIFACTS/SimulatorHost-launch.log" 2>&1 || true
+  xcrun simctl io "$UDID" screenshot \
+    "$ARTIFACTS/SimulatorHost-launch-failure.png" || true
+  echo "SimulatorHost diagnostics were not produced" >&2
+  exit 1
+fi
 
 cp "$DIAGNOSTICS" \
   "$ARTIFACTS/SimulatorHostDiagnostics.json"
+test -s "$SETTINGS_SNAPSHOT"
+cp "$SETTINGS_SNAPSHOT" \
+  "$ARTIFACTS/SimulatorHostSettings.png"
 xcrun simctl io "$UDID" screenshot \
   "$ARTIFACTS/SimulatorHost.png"
 
@@ -175,9 +205,12 @@ expected = {
     "loader_constructor_ran": True,
     "settings_entry_count": 1,
     "settings_controller_opened": True,
+    "settings_snapshot_written": True,
     "window_matches_screen": True,
     "content_reaches_top_edge": True,
     "content_reaches_bottom_edge": True,
+    "login_additional_safe_area_preserved": True,
+    "login_content_inside_safe_area": True,
 }
 errors = []
 for key, value in expected.items():
@@ -191,6 +224,17 @@ if data.get("glass_backdrop_count", 0) < 2:
     errors.append(
         "glass_backdrop_count: expected two hooked custom glass backdrops"
     )
+if data.get("glass_test_content_count", 0) < 3:
+    errors.append(
+        "glass_test_content_count: expected varied content under glass"
+    )
+switch_count = data.get("settings_switch_count", 0)
+if switch_count < 1:
+    errors.append("settings_switch_count: expected module switches")
+if data.get("settings_switches_with_hints") != switch_count:
+    errors.append("every settings switch must expose an accessibility hint")
+if data.get("settings_multiline_details") != switch_count:
+    errors.append("every settings switch must allow multiline details")
 if data.get("glass_effect_default_initializer_available") is not True:
     errors.append("UIGlassEffect default initializer is not available")
 if errors:

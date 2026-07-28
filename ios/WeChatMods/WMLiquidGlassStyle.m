@@ -5,6 +5,10 @@
 #import <objc/runtime.h>
 
 static void *WMLiquidGlassBackdropKey = &WMLiquidGlassBackdropKey;
+static void *WMReduceTransparencyStateKey =
+    &WMReduceTransparencyStateKey;
+static void *WMDarkerSystemColorsStateKey =
+    &WMDarkerSystemColorsStateKey;
 static IMP WMCustomNavigationDidMoveOriginal = NULL;
 static IMP WMCustomTabDidMoveOriginal = NULL;
 static IMP WMCustomNavigationLayoutOriginal = NULL;
@@ -13,6 +17,9 @@ static BOOL WMCustomNavigationHookInstalled = NO;
 static BOOL WMCustomTabHookInstalled = NO;
 
 static UIVisualEffect *WMGlassEffect(void) {
+    if (UIAccessibilityIsReduceTransparencyEnabled()) {
+        return nil;
+    }
     Class effectClass = NSClassFromString(@"UIGlassEffect");
     if (effectClass != Nil) {
         id effect = [effectClass new];
@@ -26,17 +33,58 @@ static UIVisualEffect *WMGlassEffect(void) {
             return effect;
         }
     }
-    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+    UIBlurEffectStyle style = UIAccessibilityDarkerSystemColorsEnabled()
+        ? UIBlurEffectStyleSystemThickMaterial
+        : UIBlurEffectStyleSystemMaterial;
+    return [UIBlurEffect effectWithStyle:style];
+}
+
+static void WMUpdateGlassBackdrop(UIVisualEffectView *backdrop) {
+    BOOL reduceTransparency =
+        UIAccessibilityIsReduceTransparencyEnabled();
+    BOOL darkerSystemColors =
+        UIAccessibilityDarkerSystemColorsEnabled();
+    NSNumber *previousReduce = objc_getAssociatedObject(
+        backdrop,
+        WMReduceTransparencyStateKey
+    );
+    NSNumber *previousDarker = objc_getAssociatedObject(
+        backdrop,
+        WMDarkerSystemColorsStateKey
+    );
+    if (previousReduce != nil &&
+        previousDarker != nil &&
+        previousReduce.boolValue == reduceTransparency &&
+        previousDarker.boolValue == darkerSystemColors) {
+        return;
+    }
+    backdrop.effect = WMGlassEffect();
+    backdrop.backgroundColor = reduceTransparency
+        ? UIColor.secondarySystemBackgroundColor
+        : UIColor.clearColor;
+    objc_setAssociatedObject(
+        backdrop,
+        WMReduceTransparencyStateKey,
+        @(reduceTransparency),
+        OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    );
+    objc_setAssociatedObject(
+        backdrop,
+        WMDarkerSystemColorsStateKey,
+        @(darkerSystemColors),
+        OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    );
 }
 
 static void WMInstallGlassBackdrop(UIView *bar) {
     UIVisualEffectView *backdrop =
         objc_getAssociatedObject(bar, WMLiquidGlassBackdropKey);
     if (backdrop != nil && backdrop.superview == bar) {
+        WMUpdateGlassBackdrop(backdrop);
         return;
     }
     if (backdrop == nil) {
-        backdrop = [[UIVisualEffectView alloc] initWithEffect:WMGlassEffect()];
+        backdrop = [[UIVisualEffectView alloc] initWithEffect:nil];
         backdrop.translatesAutoresizingMaskIntoConstraints = NO;
         backdrop.userInteractionEnabled = NO;
         backdrop.accessibilityElementsHidden = YES;
@@ -49,6 +97,7 @@ static void WMInstallGlassBackdrop(UIView *bar) {
             OBJC_ASSOCIATION_RETAIN_NONATOMIC
         );
     }
+    WMUpdateGlassBackdrop(backdrop);
     [bar insertSubview:backdrop atIndex:0];
     [NSLayoutConstraint activateConstraints:@[
         [backdrop.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor],
@@ -205,10 +254,25 @@ static void WMInstallDynamicBarHooks(void) {
 }
 
 static void WMRefreshVisibleLayouts(void) {
-    for (UIWindow *window in UIApplication.sharedApplication.windows) {
-        UIView *rootView = window.rootViewController.view;
-        [rootView setNeedsLayout];
-        [rootView layoutIfNeeded];
+    for (UIScene *scene
+         in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class] ||
+            (scene.activationState !=
+                UISceneActivationStateForegroundActive &&
+             scene.activationState !=
+                UISceneActivationStateForegroundInactive)) {
+            continue;
+        }
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (window.isHidden ||
+                window.alpha <= 0.0 ||
+                window.rootViewController == nil) {
+                continue;
+            }
+            UIView *rootView = window.rootViewController.view;
+            [rootView setNeedsLayout];
+            [rootView layoutIfNeeded];
+        }
     }
 }
 
@@ -222,7 +286,9 @@ static void WMRefreshVisibleLayouts(void) {
         for (NSNotificationName name in @[
             UIApplicationDidFinishLaunchingNotification,
             UIApplicationDidBecomeActiveNotification,
-            UIWindowDidBecomeVisibleNotification
+            UIWindowDidBecomeVisibleNotification,
+            UIAccessibilityReduceTransparencyStatusDidChangeNotification,
+            UIAccessibilityDarkerSystemColorsStatusDidChangeNotification
         ]) {
             [center addObserverForName:name
                                object:nil
