@@ -14,6 +14,7 @@ from .diffing import diff_reports
 from .inventory import select_current_targets
 from .inject import inject_loader
 from .packaging import package_all_disabled, verify_package
+from .reference_candidate import prepare_glass_loader
 
 
 def _read_json(path: str | Path) -> Any:
@@ -79,6 +80,11 @@ def build_parser() -> argparse.ArgumentParser:
     icon.add_argument("output_ipa")
     icon.add_argument("--report")
 
+    glass_loader = commands.add_parser("prepare-glass-loader")
+    glass_loader.add_argument("input_dylib")
+    glass_loader.add_argument("output_dylib")
+    glass_loader.add_argument("--report")
+
     account_safety = commands.add_parser("account-safety")
     account_safety.add_argument("baseline_ipa")
     account_safety.add_argument("candidate_ipa")
@@ -139,6 +145,14 @@ def main(argv: list[str] | None = None) -> int:
                 args.master_png,
                 args.icon_document,
                 args.output_ipa,
+            ),
+            args.report,
+        )
+    elif args.command == "prepare-glass-loader":
+        _write_json(
+            prepare_glass_loader(
+                args.input_dylib,
+                args.output_dylib,
             ),
             args.report,
         )
