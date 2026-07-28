@@ -8,6 +8,135 @@ from wechat_ipa_audit.coexist import inspect_coexist, make_coexist_ipa
 
 
 class CoexistPackagingTests(unittest.TestCase):
+    def test_relocates_frameworks_needed_after_extensions_are_stripped(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ipa"
+            output = root / "coexist.ipa"
+            app = "Payload/WeChat.app/"
+            old_rpath = (
+                b"@executable_path/PlugIns/WeChatScreenCapture.appex"
+            )
+            new_rpath = b"@executable_path/Frameworks"
+            main_info = {
+                "CFBundleIdentifier": "com.tencent.xin",
+                "CFBundleExecutable": "WeChat",
+                "CFBundleName": "WeChat",
+            }
+            with zipfile.ZipFile(source, "w", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(
+                    app + "Info.plist",
+                    plistlib.dumps(main_info),
+                )
+                archive.writestr(app + "WeChat", b"main")
+                archive.writestr(
+                    app + "Frameworks/MMRouter.framework/MMRouter",
+                    b"prefix"
+                    b"@rpath/JavaScriptCore.framework/JavaScriptCore"
+                    b"suffix",
+                )
+                archive.writestr(
+                    app + "detector.bundle/JavaScriptCore.framework/Info.plist",
+                    plistlib.dumps(
+                        {
+                            "CFBundleExecutable": "JavaScriptCore",
+                            "CFBundleIdentifier": "fixture.JavaScriptCore",
+                        }
+                    ),
+                )
+                archive.writestr(
+                    app
+                    + "detector.bundle/JavaScriptCore.framework/JavaScriptCore",
+                    b"before" + old_rpath + b"\0after",
+                )
+                archive.writestr(
+                    app
+                    + "PlugIns/WeChatScreenCapture.appex/"
+                    + "MIRMetal.framework/Info.plist",
+                    plistlib.dumps(
+                        {
+                            "CFBundleExecutable": "MIRMetal",
+                            "CFBundleIdentifier": "fixture.MIRMetal",
+                        }
+                    ),
+                )
+                archive.writestr(
+                    app
+                    + "PlugIns/WeChatScreenCapture.appex/"
+                    + "MIRMetal.framework/MIRMetal",
+                    b"mir-metal",
+                )
+
+            make_coexist_ipa(
+                source,
+                output,
+                bundle_id="com.luvsic73.wechatmods",
+                display_name="WeChat Glass",
+                scheme_prefix="wechatmods",
+                strip_extensions=True,
+            )
+
+            with zipfile.ZipFile(output) as archive:
+                names = set(archive.namelist())
+                relocated_jsc = archive.read(
+                    app
+                    + "Frameworks/JavaScriptCore.framework/JavaScriptCore"
+                )
+
+        self.assertNotIn(
+            app
+            + "detector.bundle/JavaScriptCore.framework/JavaScriptCore",
+            names,
+        )
+        self.assertIn(
+            app + "Frameworks/JavaScriptCore.framework/Info.plist",
+            names,
+        )
+        self.assertIn(
+            app + "Frameworks/MIRMetal.framework/MIRMetal",
+            names,
+        )
+        self.assertFalse(any("/PlugIns/" in name for name in names))
+        self.assertEqual(len(relocated_jsc), len(b"before" + old_rpath + b"\0after"))
+        self.assertIn(new_rpath + b"\0", relocated_jsc)
+        self.assertNotIn(old_rpath, relocated_jsc)
+
+    def test_rejects_a_missing_runtime_framework_before_packaging(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ipa"
+            output = root / "coexist.ipa"
+            app = "Payload/WeChat.app/"
+            with zipfile.ZipFile(source, "w", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(
+                    app + "Info.plist",
+                    plistlib.dumps(
+                        {
+                            "CFBundleIdentifier": "com.tencent.xin",
+                            "CFBundleExecutable": "WeChat",
+                            "CFBundleName": "WeChat",
+                        }
+                    ),
+                )
+                archive.writestr(app + "WeChat", b"main")
+                archive.writestr(
+                    app + "Frameworks/MMRouter.framework/MMRouter",
+                    b"@rpath/JavaScriptCore.framework/JavaScriptCore",
+                )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "JavaScriptCore runtime framework",
+            ):
+                make_coexist_ipa(
+                    source,
+                    output,
+                    bundle_id="com.luvsic73.wechatmods",
+                    display_name="WeChat Glass",
+                    scheme_prefix="wechatmods",
+                    strip_extensions=True,
+                )
+
     def test_powershell_build_uses_encoding_independent_display_name(self) -> None:
         script = (
             Path(__file__).resolve().parents[1]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import plistlib
 import re
 import shutil
@@ -30,6 +31,9 @@ OFFICIAL_URL_SCHEMES = {
 _BUNDLE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]+$")
 _BUNDLE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
+_MMROUTER_JSC = b"@rpath/JavaScriptCore.framework/JavaScriptCore"
+_JSC_OLD_RPATH = b"@executable_path/PlugIns/WeChatScreenCapture.appex"
+_JSC_NEW_RPATH = b"@executable_path/Frameworks"
 
 
 def _top_level_info(archive: zipfile.ZipFile) -> str:
@@ -83,6 +87,57 @@ def _rewrite_info(
     return plistlib.dumps(info, fmt=plistlib.FMT_BINARY, sort_keys=False)
 
 
+def _runtime_framework_relocations(
+    source: zipfile.ZipFile,
+    app_prefix: str,
+    *,
+    strip_extensions: bool,
+) -> dict[str, str]:
+    if not strip_extensions:
+        return {}
+
+    names = set(source.namelist())
+    router = app_prefix + "Frameworks/MMRouter.framework/MMRouter"
+    if router not in names or _MMROUTER_JSC not in source.read(router):
+        return {}
+
+    root = app_prefix + "Frameworks/"
+    jsc_source = app_prefix + "detector.bundle/JavaScriptCore.framework/"
+    jsc_target = root + "JavaScriptCore.framework/"
+    mir_source = (
+        app_prefix
+        + "PlugIns/WeChatScreenCapture.appex/MIRMetal.framework/"
+    )
+    mir_target = root + "MIRMetal.framework/"
+    relocations: dict[str, str] = {}
+
+    if jsc_target + "JavaScriptCore" not in names:
+        if jsc_source + "JavaScriptCore" not in names:
+            raise ValueError(
+                "JavaScriptCore runtime framework is missing from the IPA"
+            )
+        relocations[jsc_source] = jsc_target
+    if mir_target + "MIRMetal" not in names:
+        if mir_source + "MIRMetal" not in names:
+            raise ValueError(
+                "MIRMetal runtime framework is missing from the stripped extension"
+            )
+        relocations[mir_source] = mir_target
+    return relocations
+
+
+def _patch_relocated_jsc(data: bytes) -> bytes:
+    old = _JSC_OLD_RPATH + b"\0"
+    if data.count(old) != 1:
+        raise ValueError("JavaScriptCore runtime rpath does not match")
+    replacement = (
+        _JSC_NEW_RPATH
+        + b"\0"
+        + b"\0" * (len(_JSC_OLD_RPATH) - len(_JSC_NEW_RPATH))
+    )
+    return data.replace(old, replacement, 1)
+
+
 def make_coexist_ipa(
     input_ipa: str | Path,
     output_ipa: str | Path,
@@ -120,6 +175,11 @@ def make_coexist_ipa(
 
         plugin_prefix = app_prefix + "PlugIns/"
         watch_prefix = app_prefix + "Watch/"
+        relocations = _runtime_framework_relocations(
+            source,
+            app_prefix,
+            strip_extensions=strip_extensions,
+        )
         with zipfile.ZipFile(
             output_path,
             "w",
@@ -128,13 +188,30 @@ def make_coexist_ipa(
         ) as target:
             for member in source.infolist():
                 name = member.filename
+                if "/_CodeSignature/" in name or name.endswith(
+                    "/embedded.mobileprovision"
+                ):
+                    continue
+                relocation = next(
+                    (
+                        (source_prefix, target_prefix)
+                        for source_prefix, target_prefix in relocations.items()
+                        if name.startswith(source_prefix)
+                    ),
+                    None,
+                )
+                if relocation is not None:
+                    source_prefix, target_prefix = relocation
+                    relocated = copy.copy(member)
+                    relocated.filename = target_prefix + name[len(source_prefix) :]
+                    data = source.read(member)
+                    if name == source_prefix + "JavaScriptCore":
+                        data = _patch_relocated_jsc(data)
+                    target.writestr(relocated, data)
+                    continue
                 if strip_extensions and (
                     name.startswith(plugin_prefix)
                     or name.startswith(watch_prefix)
-                ):
-                    continue
-                if "/_CodeSignature/" in name or name.endswith(
-                    "/embedded.mobileprovision"
                 ):
                     continue
                 if name == info_path:

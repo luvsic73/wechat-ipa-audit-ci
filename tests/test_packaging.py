@@ -62,6 +62,40 @@ class PackagingTests(unittest.TestCase):
         self.assertTrue(verification["valid"])
         self.assertTrue(verification["loader_present"])
         self.assertTrue(verification["loader_executable"])
+        self.assertTrue(verification["runtime_dependencies_resolved"])
+
+    def test_rejects_the_captured_mmrouter_missing_library_pattern(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base.ipa"
+            output = root / "output.ipa"
+            make_ipa(base)
+            package_all_disabled(base, output, [{"id": "theme"}])
+            loader = zipfile.ZipInfo(
+                "Payload/Fixture.app/Frameworks/WeChatMods.dylib"
+            )
+            loader.create_system = 3
+            loader.external_attr = 0o100755 << 16
+            router = zipfile.ZipInfo(
+                "Payload/Fixture.app/Frameworks/MMRouter.framework/MMRouter"
+            )
+            router.create_system = 3
+            router.external_attr = 0o100755 << 16
+            with zipfile.ZipFile(output, "a", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(loader, b"loader")
+                archive.writestr(
+                    router,
+                    b"@rpath/JavaScriptCore.framework/JavaScriptCore",
+                )
+
+            verification = verify_package(output)
+
+        self.assertFalse(verification["valid"])
+        self.assertFalse(verification["runtime_dependencies_resolved"])
+        self.assertIn(
+            "Frameworks/JavaScriptCore.framework/JavaScriptCore",
+            verification["runtime_dependency_errors"],
+        )
 
     def test_preserves_an_explicit_default_enabled_module(self) -> None:
         modules = [

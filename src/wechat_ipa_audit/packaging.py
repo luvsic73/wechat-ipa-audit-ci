@@ -10,6 +10,9 @@ from typing import Any
 
 
 _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
+_MMROUTER_JSC = b"@rpath/JavaScriptCore.framework/JavaScriptCore"
+_JSC_OLD_RPATH = b"@executable_path/PlugIns/WeChatScreenCapture.appex"
+_JSC_NEW_RPATH = b"@executable_path/Frameworks"
 
 
 def _manifest_path(archive: zipfile.ZipFile) -> str:
@@ -77,6 +80,36 @@ def verify_package(path: str | Path) -> dict[str, Any]:
         loader_executable = loader_present and bool(
             (archive.getinfo(loader_path).external_attr >> 16) & 0o111
         )
+        names = set(archive.namelist())
+        router_path = app_prefix + "Frameworks/MMRouter.framework/MMRouter"
+        runtime_dependency_errors: list[str] = []
+        if (
+            router_path in names
+            and _MMROUTER_JSC in archive.read(router_path)
+        ):
+            jsc_path = (
+                app_prefix
+                + "Frameworks/JavaScriptCore.framework/JavaScriptCore"
+            )
+            mir_path = app_prefix + "Frameworks/MIRMetal.framework/MIRMetal"
+            if jsc_path not in names:
+                runtime_dependency_errors.append(
+                    "Frameworks/JavaScriptCore.framework/JavaScriptCore"
+                )
+            else:
+                jsc = archive.read(jsc_path)
+                if (
+                    _JSC_OLD_RPATH in jsc
+                    or _JSC_NEW_RPATH not in jsc
+                ):
+                    runtime_dependency_errors.append(
+                        "JavaScriptCore runtime rpath"
+                    )
+            if mir_path not in names:
+                runtime_dependency_errors.append(
+                    "Frameworks/MIRMetal.framework/MIRMetal"
+                )
+        runtime_dependencies_resolved = not runtime_dependency_errors
     modules = manifest.get("modules", [])
     enabled = sorted(
         module["id"] for module in modules if module.get("enabled") is True
@@ -92,6 +125,7 @@ def verify_package(path: str | Path) -> dict[str, Any]:
             not unexpected_enabled
             and loader_present
             and loader_executable
+            and runtime_dependencies_resolved
         ),
         "manifest_path": manifest_path,
         "module_count": len(modules),
@@ -99,4 +133,6 @@ def verify_package(path: str | Path) -> dict[str, Any]:
         "unexpected_enabled_modules": unexpected_enabled,
         "loader_present": loader_present,
         "loader_executable": loader_executable,
+        "runtime_dependencies_resolved": runtime_dependencies_resolved,
+        "runtime_dependency_errors": runtime_dependency_errors,
     }
