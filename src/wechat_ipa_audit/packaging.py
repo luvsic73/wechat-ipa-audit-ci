@@ -134,7 +134,7 @@ def package_all_disabled(
             if component_payload is not None:
                 relative = collection.get(
                     "archive_path",
-                    "WeChatMods/FeatureCollection/MiYou.dylib",
+                    "Frameworks/MiYou.dylib",
                 )
                 component_info = zipfile.ZipInfo(app_prefix + relative)
                 component_info.create_system = 3
@@ -204,7 +204,7 @@ def verify_package(path: str | Path) -> dict[str, Any]:
         collection_required = collection.get("included") is True
         collection_relative = collection.get(
             "archive_path",
-            "WeChatMods/FeatureCollection/MiYou.dylib",
+            "Frameworks/MiYou.dylib",
         )
         collection_path = app_prefix + collection_relative
         feature_collection_present = collection_path in names

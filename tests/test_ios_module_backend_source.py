@@ -62,7 +62,7 @@ class IOSModuleBackendSourceTests(unittest.TestCase):
         self.assertIn("RTLD_NOW | RTLD_LOCAL", source)
         self.assertIn("methodSignatureForSelector", source)
         self.assertIn("numberOfArguments != 3", source)
-        self.assertIn("WeChatMods/FeatureCollection/MiYou.dylib", source)
+        self.assertIn("Frameworks/MiYou.dylib", source)
         self.assertNotIn("PKCWeChatTools", source)
         self.assertNotIn("HBB9", source)
 

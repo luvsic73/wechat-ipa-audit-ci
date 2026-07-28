@@ -92,9 +92,7 @@ class PackagingTests(unittest.TestCase):
         sha256 = hashlib.sha256(payload).hexdigest().upper()
         metadata = {
             "component": "MiYou.dylib",
-            "archive_path": (
-                "WeChatMods/FeatureCollection/MiYou.dylib"
-            ),
+            "archive_path": "Frameworks/MiYou.dylib",
             "full_sha256": sha256,
             "included": True,
             "activation_gate": "ready",
@@ -118,7 +116,7 @@ class PackagingTests(unittest.TestCase):
             with zipfile.ZipFile(output) as archive:
                 member = (
                     "Payload/Fixture.app/"
-                    "WeChatMods/FeatureCollection/MiYou.dylib"
+                    "Frameworks/MiYou.dylib"
                 )
                 bundled = archive.read(member)
                 executable = bool(

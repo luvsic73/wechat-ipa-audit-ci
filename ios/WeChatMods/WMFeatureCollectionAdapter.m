@@ -8,7 +8,7 @@
 #import "WMModuleDescriptor.h"
 
 static NSString *const WMFeatureCollectionRelativePath =
-    @"WeChatMods/FeatureCollection/MiYou.dylib";
+    @"Frameworks/MiYou.dylib";
 static NSString *const WMFeatureCollectionSHA256 =
     @"949867747FE5189212FAA3B28137157220BA7B40D77A94404A205F45B61565E1";
 

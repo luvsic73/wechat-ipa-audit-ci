@@ -231,8 +231,7 @@ class AccountSafetyTests(unittest.TestCase):
                 candidate,
                 bundle_id="com.tencent.xin",
                 extra={
-                    "Payload/WeChat.app/WeChatMods/"
-                    "FeatureCollection/MiYou.dylib":
+                    "Payload/WeChat.app/Frameworks/MiYou.dylib":
                         component.read_bytes()
                 },
             )

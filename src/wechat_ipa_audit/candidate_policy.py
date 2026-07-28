@@ -13,7 +13,7 @@ from .feature_collection import PATCHED_SHA256
 _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
 _EXPECTED_LOADER = "Frameworks/WeChatMods.dylib"
 _EXPECTED_FEATURE_COMPONENT = (
-    "WeChatMods/FeatureCollection/MiYou.dylib"
+    "Frameworks/MiYou.dylib"
 )
 _BLOCKED_COMPONENT_NAMES = {
     "hbb9.1.2.dylib",

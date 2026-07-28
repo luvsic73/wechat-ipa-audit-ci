@@ -101,7 +101,7 @@ class CandidatePolicyTests(unittest.TestCase):
                 candidate,
                 components={
                     "Frameworks/WeChatMods.dylib": b"loader",
-                    "WeChatMods/FeatureCollection/MiYou.dylib": payload,
+                    "Frameworks/MiYou.dylib": payload,
                 },
             )
 
@@ -118,12 +118,12 @@ class CandidatePolicyTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertEqual(
             report["untrusted_feature_components"],
-            ["WeChatMods/FeatureCollection/MiYou.dylib"],
+            ["Frameworks/MiYou.dylib"],
         )
         self.assertTrue(trusted_report["valid"])
         self.assertEqual(
             trusted_report["trusted_feature_components"],
-            ["WeChatMods/FeatureCollection/MiYou.dylib"],
+            ["Frameworks/MiYou.dylib"],
         )
 
     def test_blocks_expiry_and_redirect_markers_in_the_loader(self) -> None:
