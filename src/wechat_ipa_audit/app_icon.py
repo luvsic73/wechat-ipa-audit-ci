@@ -127,6 +127,9 @@ def replace_app_icon(
     master_png: str | Path,
     icon_document: str | Path,
     output_ipa: str | Path,
+    *,
+    compiled_assets_car: str | Path | None = None,
+    compiled_info_plist: str | Path | None = None,
 ) -> dict[str, Any]:
     source_path = Path(input_ipa).resolve()
     output_path = Path(output_ipa).resolve()
@@ -145,6 +148,22 @@ def replace_app_icon(
 
     document_path = Path(icon_document)
     _validate_icon_document(document_path)
+    if (compiled_assets_car is None) != (compiled_info_plist is None):
+        raise ValueError(
+            "compiled Assets.car and partial Info.plist must be provided together"
+        )
+    compiled_assets_data: bytes | None = None
+    compiled_icon_info: dict[str, Any] | None = None
+    if compiled_assets_car is not None and compiled_info_plist is not None:
+        compiled_assets_path = Path(compiled_assets_car)
+        compiled_info_path = Path(compiled_info_plist)
+        compiled_assets_data = compiled_assets_path.read_bytes()
+        compiled_icon_info = plistlib.loads(compiled_info_path.read_bytes())
+        for key in ("CFBundleIcons", "CFBundleIcons~ipad"):
+            if not isinstance(compiled_icon_info.get(key), dict):
+                raise ValueError(
+                    f"compiled icon partial Info.plist is missing {key}"
+                )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     replaced: list[dict[str, Any]] = []
@@ -163,9 +182,17 @@ def replace_app_icon(
         document_archive_prefix = app_prefix + icon_name + ".icon/"
         existing_names = set(source.namelist())
         missing_scale_icons = _missing_scale_icons(info, app_prefix)
-        info.pop("CFBundleIcons", None)
-        info.pop("CFBundleIcons~ipad", None)
+        if compiled_icon_info is None:
+            info.pop("CFBundleIcons", None)
+            info.pop("CFBundleIcons~ipad", None)
+        else:
+            info["CFBundleIcons"] = compiled_icon_info["CFBundleIcons"]
+            info["CFBundleIcons~ipad"] = compiled_icon_info[
+                "CFBundleIcons~ipad"
+            ]
         info["CFBundleIconFiles"] = list(_LEGACY_ICON_FILES)
+        compiled_assets_member = app_prefix + "Assets.car"
+        compiled_assets_written = False
 
         icon_members: dict[str, bytes] = {}
         for member in source.infolist():
@@ -247,6 +274,13 @@ def replace_app_icon(
                         ),
                     )
                     continue
+                if (
+                    compiled_assets_data is not None
+                    and member.filename == compiled_assets_member
+                ):
+                    target.writestr(member, compiled_assets_data)
+                    compiled_assets_written = True
+                    continue
                 replacement = icon_members.get(member.filename)
                 if replacement is not None:
                     target.writestr(member, replacement)
@@ -265,6 +299,15 @@ def replace_app_icon(
                 member.external_attr = 0o100644 << 16
                 target.writestr(member, icon_members[name])
 
+            if (
+                compiled_assets_data is not None
+                and not compiled_assets_written
+            ):
+                member = zipfile.ZipInfo(compiled_assets_member)
+                member.create_system = 3
+                member.external_attr = 0o100644 << 16
+                target.writestr(member, compiled_assets_data)
+
             for file_path in sorted(
                 path for path in document_path.rglob("*") if path.is_file()
             ):
@@ -281,6 +324,13 @@ def replace_app_icon(
         "icon_document": icon_name + ".icon",
         "replaced_count": len(replaced),
         "added_count": len(added),
+        "compiled_asset_catalog_integrated":
+            compiled_assets_data is not None,
+        "compiled_assets_sha256": (
+            hashlib.sha256(compiled_assets_data).hexdigest()
+            if compiled_assets_data is not None
+            else None
+        ),
         "replaced": replaced,
         "added": added,
     }

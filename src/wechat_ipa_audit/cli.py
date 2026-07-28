@@ -99,6 +99,8 @@ def build_parser() -> argparse.ArgumentParser:
     icon.add_argument("master_png")
     icon.add_argument("icon_document")
     icon.add_argument("output_ipa")
+    icon.add_argument("--compiled-assets-car")
+    icon.add_argument("--compiled-info-plist")
     icon.add_argument("--report")
 
     glass_loader = commands.add_parser("prepare-glass-loader")
@@ -206,6 +208,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.master_png,
                 args.icon_document,
                 args.output_ipa,
+                compiled_assets_car=args.compiled_assets_car,
+                compiled_info_plist=args.compiled_info_plist,
             ),
             args.report,
         )

@@ -5,7 +5,9 @@ param(
     [string]$OutputIpa,
     [string]$ReportDirectory,
     [string]$DisplayName,
-    [string]$FeatureCollection
+    [string]$FeatureCollection,
+    [string]$CompiledAssetsCar,
+    [string]$CompiledIconInfo
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,6 +33,21 @@ if (-not $FeatureCollection) {
 $featureSource = [IO.Path]::GetFullPath($FeatureCollection)
 if (-not (Test-Path -LiteralPath $featureSource -PathType Leaf)) {
     throw "Audited feature collection sample is missing: $featureSource"
+}
+if (-not $CompiledAssetsCar) {
+    $CompiledAssetsCar = Join-Path $projectRoot (
+        "dist\\icon-compiled\\Assets.car"
+    )
+}
+if (-not $CompiledIconInfo) {
+    $CompiledIconInfo = Join-Path $projectRoot "dist\\icon-partial-info.plist"
+}
+$compiledAssetsPath = [IO.Path]::GetFullPath($CompiledAssetsCar)
+$compiledInfoPath = [IO.Path]::GetFullPath($CompiledIconInfo)
+foreach ($requiredIconFile in @($compiledAssetsPath, $compiledInfoPath)) {
+    if (-not (Test-Path -LiteralPath $requiredIconFile -PathType Leaf)) {
+        throw "Compiled Liquid Glass icon artifact is missing: $requiredIconFile"
+    }
 }
 
 $staging = Join-Path ([IO.Path]::GetTempPath()) (
@@ -97,6 +114,8 @@ try {
         (Join-Path $projectRoot "assets\app-icon-liquid-glass-1024.png") `
         (Join-Path $projectRoot "assets\AppIcon.icon") `
         $candidateIpa `
+        --compiled-assets-car $compiledAssetsPath `
+        --compiled-info-plist $compiledInfoPath `
         --report (Join-Path $reportPath "app-icon.json")
     if ($LASTEXITCODE -ne 0) {
         throw "Reference app icon replacement failed"

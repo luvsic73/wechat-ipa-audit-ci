@@ -221,6 +221,105 @@ class AppIconPackagingTests(unittest.TestCase):
                     len(set(archive.namelist())),
                 )
 
+    def test_installs_xcode_compiled_liquid_glass_asset_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ipa"
+            output = root / "output.ipa"
+            master = root / "master.png"
+            icon_bundle = root / "AppIcon.icon"
+            compiled_assets = root / "Assets.car"
+            compiled_info = root / "icon-partial-info.plist"
+            (icon_bundle / "Assets").mkdir(parents=True)
+            Image.new("RGB", (1024, 1024), (17, 24, 39)).save(master)
+            (icon_bundle / "icon.json").write_text(
+                json.dumps(
+                    {
+                        "groups": [
+                            {
+                                "layers": [
+                                    {
+                                        "image-name": "bubble.png",
+                                        "glass": True,
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (icon_bundle / "Assets" / "bubble.png").write_bytes(
+                _png((1024, 1024), (255, 255, 255))
+            )
+            compiled_assets.write_bytes(b"xcode-26-assets-car")
+            partial = {
+                "CFBundleIcons": {
+                    "CFBundlePrimaryIcon": {
+                        "CFBundleIconFiles": ["AppIcon60x60"],
+                        "CFBundleIconName": "AppIcon",
+                    }
+                },
+                "CFBundleIcons~ipad": {
+                    "CFBundlePrimaryIcon": {
+                        "CFBundleIconFiles": [
+                            "AppIcon60x60",
+                            "AppIcon76x76",
+                        ],
+                        "CFBundleIconName": "AppIcon",
+                    }
+                },
+            }
+            compiled_info.write_bytes(plistlib.dumps(partial))
+            with zipfile.ZipFile(source, "w", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(
+                    "Payload/Fixture.app/Info.plist",
+                    plistlib.dumps(
+                        {
+                            "CFBundleIdentifier": "com.example.fixture",
+                            "CFBundleIcons": partial["CFBundleIcons"],
+                        }
+                    ),
+                )
+                archive.writestr(
+                    "Payload/Fixture.app/AppIcon60x60@2x.png",
+                    _png((120, 120), (0, 255, 0)),
+                )
+                archive.writestr(
+                    "Payload/Fixture.app/Assets.car",
+                    b"old-assets-car",
+                )
+
+            report = replace_app_icon(
+                source,
+                master,
+                icon_bundle,
+                output,
+                compiled_assets_car=compiled_assets,
+                compiled_info_plist=compiled_info,
+            )
+
+            with zipfile.ZipFile(output) as archive:
+                info = plistlib.loads(
+                    archive.read("Payload/Fixture.app/Info.plist")
+                )
+                assets = archive.read("Payload/Fixture.app/Assets.car")
+
+        self.assertEqual(assets, b"xcode-26-assets-car")
+        self.assertEqual(
+            info["CFBundleIcons"]["CFBundlePrimaryIcon"][
+                "CFBundleIconName"
+            ],
+            "AppIcon",
+        )
+        self.assertEqual(
+            info["CFBundleIcons~ipad"]["CFBundlePrimaryIcon"][
+                "CFBundleIconName"
+            ],
+            "AppIcon",
+        )
+        self.assertTrue(report["compiled_asset_catalog_integrated"])
+
 
 if __name__ == "__main__":
     unittest.main()
