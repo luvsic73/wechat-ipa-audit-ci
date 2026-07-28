@@ -44,13 +44,15 @@ class ModuleCatalogTests(unittest.TestCase):
             requested={module["id"] for module in collection_modules},
             version="8.0.75",
         )
-        self.assertEqual(plan["enabled"], [])
-        self.assertTrue(
-            all(
-                "activation_gate:component-repair-required" in reasons
+        self.assertNotIn(
+            "activation_gate:component-repair-required",
+            {
+                reason
                 for reasons in plan["blocked"].values()
-            )
+                for reason in reasons
+            },
         )
+        self.assertGreaterEqual(len(plan["enabled"]), 47)
 
     def test_plan_blocks_cross_owner_hook_collision(self) -> None:
         modules = [

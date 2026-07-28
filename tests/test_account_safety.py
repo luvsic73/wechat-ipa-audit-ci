@@ -215,6 +215,45 @@ class AccountSafetyTests(unittest.TestCase):
         self.assertTrue(report["release_blocked"])
         self.assertFalse(report["trusted_loader_matched"])
 
+    def test_allows_residual_markers_only_in_hash_matched_repaired_component(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline = root / "baseline.ipa"
+            candidate = root / "candidate.ipa"
+            component = root / "MiYou.dylib"
+            component.write_bytes(
+                b"patched constructor; residual setBundleId: JailBreakHelper"
+            )
+            _write_ipa(baseline, bundle_id="com.tencent.xin")
+            _write_ipa(
+                candidate,
+                bundle_id="com.tencent.xin",
+                extra={
+                    "Payload/WeChat.app/WeChatMods/"
+                    "FeatureCollection/MiYou.dylib":
+                        component.read_bytes()
+                },
+            )
+
+            report = assess_account_safety(
+                baseline,
+                candidate,
+                trusted_feature_component=component,
+            )
+
+        self.assertFalse(report["release_blocked"])
+        self.assertTrue(report["trusted_feature_component_matched"])
+        self.assertEqual(report["forbidden_marker_hits"], [])
+        self.assertEqual(
+            {
+                hit["marker"]
+                for hit in report["trusted_feature_component_marker_hits"]
+            },
+            {"setBundleId:", "JailBreakHelper"},
+        )
+
     def test_coexist_build_runs_fail_closed_account_safety_gate(self) -> None:
         root = Path(__file__).resolve().parents[1]
         for name in ("build-iloader.ps1", "build-coexist.ps1"):

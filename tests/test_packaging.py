@@ -83,6 +83,53 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(manifest["feature_collection"], metadata)
         self.assertEqual(matching_members, [])
 
+    def test_bundles_only_the_hash_pinned_repaired_feature_collection(
+        self,
+    ) -> None:
+        payload = b"repaired feature collection"
+        import hashlib
+
+        sha256 = hashlib.sha256(payload).hexdigest().upper()
+        metadata = {
+            "component": "MiYou.dylib",
+            "archive_path": (
+                "WeChatMods/FeatureCollection/MiYou.dylib"
+            ),
+            "full_sha256": sha256,
+            "included": True,
+            "activation_gate": "ready",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base.ipa"
+            output = root / "output.ipa"
+            component = root / "MiYou.dylib"
+            component.write_bytes(payload)
+            make_ipa(base)
+
+            package_all_disabled(
+                base,
+                output,
+                [{"id": "forward-voice", "runtime": "feature-collection"}],
+                feature_collection=metadata,
+                feature_component=component,
+            )
+            verification = verify_package(output)
+            with zipfile.ZipFile(output) as archive:
+                member = (
+                    "Payload/Fixture.app/"
+                    "WeChatMods/FeatureCollection/MiYou.dylib"
+                )
+                bundled = archive.read(member)
+                executable = bool(
+                    (archive.getinfo(member).external_attr >> 16) & 0o111
+                )
+
+        self.assertEqual(bundled, payload)
+        self.assertTrue(executable)
+        self.assertTrue(verification["feature_collection_present"])
+        self.assertTrue(verification["feature_collection_hash_matched"])
+
     def test_verifies_a_complete_package_with_an_executable_loader(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

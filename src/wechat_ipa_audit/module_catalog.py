@@ -21,12 +21,7 @@ _REQUIRED_FIELDS = {
 
 
 def effective_activation_gate(module: dict[str, Any]) -> str:
-    default_gate = (
-        "component-repair-required"
-        if module.get("runtime") == "feature-collection"
-        else "ready"
-    )
-    return module.get("activation_gate", default_gate)
+    return module.get("activation_gate", "ready")
 
 
 def validate_catalog(modules: list[dict[str, Any]]) -> list[str]:

@@ -7,9 +7,14 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from .feature_collection import PATCHED_SHA256
+
 
 _TOP_LEVEL_INFO = re.compile(r"^Payload/[^/]+\.app/Info\.plist$")
 _EXPECTED_LOADER = "Frameworks/WeChatMods.dylib"
+_EXPECTED_FEATURE_COMPONENT = (
+    "WeChatMods/FeatureCollection/MiYou.dylib"
+)
 _BLOCKED_COMPONENT_NAMES = {
     "hbb9.1.2.dylib",
     "hbwechathelper.dylib",
@@ -157,16 +162,39 @@ def inspect_candidate_policy(
                 baseline_components[relative],
             )
         )
+        trusted_feature_components = sorted(
+            relative
+            for relative in candidate_components
+            if (
+                relative == _EXPECTED_FEATURE_COMPONENT
+                and _sha256(
+                    candidate,
+                    candidate_components[relative],
+                ).upper() == PATCHED_SHA256
+            )
+        )
+        untrusted_feature_components = sorted(
+            relative
+            for relative in candidate_components
+            if (
+                relative == _EXPECTED_FEATURE_COMPONENT
+                and relative not in trusted_feature_components
+            )
+        )
         unexpected = sorted(
             relative
             for relative in added
-            if relative != _EXPECTED_LOADER
+            if relative not in {
+                _EXPECTED_LOADER,
+                *trusted_feature_components,
+            }
         )
         blocked_names = sorted(
             {
                 Path(relative).name
                 for relative in candidate_components
                 if Path(relative).name.lower() in _BLOCKED_COMPONENT_NAMES
+                and relative not in trusted_feature_components
             },
             key=str.lower,
         )
@@ -175,6 +203,8 @@ def inspect_candidate_policy(
                 name[len(candidate_prefix) :]
                 for name in candidate.namelist()
                 if name.startswith(candidate_prefix)
+                and name[len(candidate_prefix) :]
+                not in trusted_feature_components
                 and any(
                     token in name[len(candidate_prefix) :].lower()
                     for token in _BLOCKED_MEMBER_TOKENS
@@ -185,6 +215,7 @@ def inspect_candidate_policy(
         changed_paths = {
             relative: candidate_components[relative]
             for relative in added + modified
+            if relative not in trusted_feature_components
         }
         marker_hits = _marker_hits(candidate, changed_paths)
 
@@ -196,6 +227,7 @@ def inspect_candidate_policy(
         or blocked_names
         or blocked_members
         or marker_hits
+        or untrusted_feature_components
         or not loader_present
     )
     return {
@@ -212,4 +244,6 @@ def inspect_candidate_policy(
         "blocked_component_names": blocked_names,
         "blocked_archive_members": blocked_members,
         "forbidden_marker_hits": marker_hits,
+        "trusted_feature_components": trusted_feature_components,
+        "untrusted_feature_components": untrusted_feature_components,
     }

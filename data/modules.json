@@ -3,16 +3,18 @@
   "activation": "restart-required",
   "feature_collection": {
     "component": "MiYou.dylib",
-    "full_sha256": "846829A8351934AA805F4A77BE59E11DB6424FED53AD151758C8B4EFB480835F",
+    "source_sha256": "846829A8351934AA805F4A77BE59E11DB6424FED53AD151758C8B4EFB480835F",
+    "full_sha256": "949867747FE5189212FAA3B28137157220BA7B40D77A94404A205F45B61565E1",
     "text_sha256": "FD826AAE0585CFF85640D8F9860352741CD4DF4CA0EA8008E0AD419EA29F073D",
+    "archive_path": "WeChatMods/FeatureCollection/MiYou.dylib",
     "runtime_class": "MiYouConfig",
     "load_policy": "load-only-when-feature-enabled",
-    "included": false,
-    "activation_gate": "component-repair-required",
-    "blocked_evidence": [
-      "18-of-18-constructors-install-method-hooks",
-      "constructor-17-hooks-setBundleId",
-      "xcode-runtime-validation-pending"
+    "included": true,
+    "activation_gate": "ready",
+    "repair_evidence": [
+      "constructor-17-entry-0xA600A0",
+      "entry-FC6FBAA9-replaced-with-RET-C0035FD6",
+      "patched-sha256-pinned"
     ]
   },
   "modules": [

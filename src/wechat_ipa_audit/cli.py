@@ -12,6 +12,7 @@ from .candidate_policy import inspect_candidate_policy
 from .coexist import inspect_coexist, make_coexist_ipa
 from .deep_scan import scan_ipa_members
 from .diffing import diff_reports
+from .feature_collection import repair_feature_collection
 from .inventory import select_current_targets
 from .inject import inject_loader
 from .loader_policy import inspect_loader_policy
@@ -65,6 +66,14 @@ def build_parser() -> argparse.ArgumentParser:
     package.add_argument("base_ipa")
     package.add_argument("output_ipa")
     package.add_argument("--modules", required=True)
+    package.add_argument("--feature-component")
+
+    repair_collection = commands.add_parser(
+        "repair-feature-collection"
+    )
+    repair_collection.add_argument("input_dylib")
+    repair_collection.add_argument("output_dylib")
+    repair_collection.add_argument("--report")
 
     inject = commands.add_parser("inject")
     inject.add_argument("input_ipa")
@@ -102,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     account_safety.add_argument("candidate_ipa")
     account_safety.add_argument("--expected-bundle-id")
     account_safety.add_argument("--trusted-loader")
+    account_safety.add_argument("--trusted-feature-component")
     account_safety.add_argument("--output")
 
     candidate_policy = commands.add_parser("candidate-policy")
@@ -161,6 +171,15 @@ def main(argv: list[str] | None = None) -> int:
             args.output_ipa,
             catalog["modules"],
             feature_collection=catalog.get("feature_collection"),
+            feature_component=args.feature_component,
+        )
+    elif args.command == "repair-feature-collection":
+        _write_json(
+            repair_feature_collection(
+                args.input_dylib,
+                args.output_dylib,
+            ),
+            args.report,
         )
     elif args.command == "inject":
         inject_loader(args.input_ipa, args.loader, args.output_ipa)
@@ -204,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
             args.candidate_ipa,
             expected_bundle_id=args.expected_bundle_id,
             trusted_loader=args.trusted_loader,
+            trusted_feature_component=args.trusted_feature_component,
         )
         _write_json(result, args.output)
         return 1 if result["release_blocked"] else 0

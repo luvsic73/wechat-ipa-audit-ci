@@ -102,6 +102,7 @@ def assess_account_safety(
     *,
     expected_bundle_id: str | None = None,
     trusted_loader: str | Path | None = None,
+    trusted_feature_component: str | Path | None = None,
 ) -> dict[str, Any]:
     baseline_path = Path(baseline_ipa).resolve()
     candidate_path = Path(candidate_ipa).resolve()
@@ -122,6 +123,23 @@ def assess_account_safety(
     )
     trusted_loader_matched = False
     defensive_loader_hits: list[dict[str, str]] = []
+    trusted_feature_path = (
+        Path(trusted_feature_component).resolve()
+        if trusted_feature_component is not None
+        else None
+    )
+    trusted_feature_sha256 = (
+        _file_sha256(trusted_feature_path)
+        if trusted_feature_path is not None
+        else None
+    )
+    trusted_feature_name = (
+        trusted_feature_path.name
+        if trusted_feature_path is not None
+        else None
+    )
+    trusted_feature_component_matched = False
+    trusted_feature_component_hits: list[dict[str, str]] = []
     findings: list[dict[str, Any]] = []
 
     with (
@@ -232,6 +250,14 @@ def assess_account_safety(
             if is_trusted_loader:
                 trusted_loader_matched = True
                 defensive_loader_hits.extend(hits)
+            elif (
+                trusted_feature_name is not None
+                and Path(name).name == trusted_feature_name
+                and _member_sha256(candidate, name)
+                == trusted_feature_sha256
+            ):
+                trusted_feature_component_matched = True
+                trusted_feature_component_hits.extend(hits)
             else:
                 forbidden_hits.extend(hits)
         if defensive_loader_hits:
@@ -255,6 +281,18 @@ def assess_account_safety(
                     "reason": (
                         "Added or modified code references authentication, "
                         "device identity, jailbreak, or debugger signals."
+                    ),
+                }
+            )
+        if trusted_feature_component_hits:
+            findings.append(
+                {
+                    "code": "verified_repaired_feature_component_markers",
+                    "severity": "info",
+                    "hits": trusted_feature_component_hits,
+                    "reason": (
+                        "Residual strings belong to the exact hash-matched "
+                        "component whose identity constructor was disabled."
                     ),
                 }
             )
@@ -301,6 +339,16 @@ def assess_account_safety(
         ),
         "trusted_loader_sha256": trusted_loader_sha256,
         "trusted_loader_matched": trusted_loader_matched,
+        "trusted_feature_component": (
+            str(trusted_feature_path)
+            if trusted_feature_path is not None
+            else None
+        ),
+        "trusted_feature_component_sha256": trusted_feature_sha256,
+        "trusted_feature_component_matched":
+            trusted_feature_component_matched,
+        "trusted_feature_component_marker_hits":
+            trusted_feature_component_hits,
         "identity_consistent": identity_consistent,
         "main_binary_modified": main_binary_modified,
         "added_executable_components": added_components,

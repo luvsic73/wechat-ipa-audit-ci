@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OutputIpa,
     [string]$ReportDirectory,
-    [string]$DisplayName
+    [string]$DisplayName,
+    [string]$FeatureCollection
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +23,15 @@ if (-not $DisplayName) {
     $DisplayName = ([char]0x5FAE).ToString() +
         ([char]0x4FE1).ToString() + " Glass"
 }
+if (-not $FeatureCollection) {
+    $FeatureCollection = Join-Path $projectRoot (
+        "analysis\\third-party-components\\846829A8351934AA\\MiYou.dylib"
+    )
+}
+$featureSource = [IO.Path]::GetFullPath($FeatureCollection)
+if (-not (Test-Path -LiteralPath $featureSource -PathType Leaf)) {
+    throw "Audited feature collection sample is missing: $featureSource"
+}
 
 $staging = Join-Path ([IO.Path]::GetTempPath()) (
     "wechat-reference-{0}" -f [guid]::NewGuid().ToString("N")
@@ -36,6 +46,15 @@ try {
     $manifestIpa = Join-Path $staging "01-manifest.ipa"
     $injectedIpa = Join-Path $staging "02-injected.ipa"
     $candidateIpa = Join-Path $staging "03-candidate.ipa"
+    $repairedFeature = Join-Path $staging "MiYou.dylib"
+
+    py -3 -m wechat_ipa_audit.cli repair-feature-collection `
+        $featureSource `
+        $repairedFeature `
+        --report (Join-Path $reportPath "feature-collection-repair.json")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Feature collection repair failed"
+    }
 
     & (Join-Path $PSScriptRoot "assert-loader-current.ps1") -Loader $loader
 
@@ -58,7 +77,9 @@ try {
     }
 
     py -3 -m wechat_ipa_audit.cli package `
-        $coexistBase $manifestIpa --modules $modules
+        $coexistBase $manifestIpa `
+        --modules $modules `
+        --feature-component $repairedFeature
     if ($LASTEXITCODE -ne 0) {
         throw "Reference manifest packaging failed"
     }
@@ -91,6 +112,7 @@ try {
     py -3 -m wechat_ipa_audit.cli account-safety `
         $coexistBase $candidateIpa `
         --trusted-loader $loader `
+        --trusted-feature-component $repairedFeature `
         --output (Join-Path $reportPath "candidate-delta.json")
     if ($LASTEXITCODE -ne 0) {
         throw "Reference candidate delta gate failed"

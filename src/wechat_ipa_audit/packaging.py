@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import plistlib
 import re
@@ -35,6 +36,7 @@ def package_all_disabled(
     modules: list[dict[str, Any]],
     *,
     feature_collection: dict[str, Any] | None = None,
+    feature_component: str | Path | None = None,
 ) -> None:
     base_path = Path(base_ipa)
     output_path = Path(output_ipa)
@@ -62,6 +64,38 @@ def package_all_disabled(
                 for module in modules
             ],
         }
+        collection = manifest["feature_collection"]
+        collection_included = collection.get("included") is True
+        component_path = (
+            Path(feature_component).resolve()
+            if feature_component is not None
+            else None
+        )
+        if collection_included and component_path is None:
+            raise ValueError(
+                "included feature collection requires a component file"
+            )
+        if component_path is not None and not collection_included:
+            raise ValueError(
+                "feature component provided while manifest marks it excluded"
+            )
+        component_payload = (
+            component_path.read_bytes()
+            if component_path is not None
+            else None
+        )
+        expected_component_hash = collection.get("full_sha256")
+        if component_payload is not None:
+            calculated = hashlib.sha256(
+                component_payload
+            ).hexdigest().upper()
+            if (
+                not isinstance(expected_component_hash, str)
+                or calculated != expected_component_hash.upper()
+            ):
+                raise ValueError(
+                    "feature component SHA-256 does not match manifest"
+                )
         with zipfile.ZipFile(
             output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
         ) as target:
@@ -97,6 +131,20 @@ def package_all_disabled(
                         _LOCALIZATION_ROOT
                     ).as_posix()
                     target.write(resource, archive_name)
+            if component_payload is not None:
+                relative = collection.get(
+                    "archive_path",
+                    "WeChatMods/FeatureCollection/MiYou.dylib",
+                )
+                component_info = zipfile.ZipInfo(app_prefix + relative)
+                component_info.create_system = 3
+                component_info.external_attr = 0o100755 << 16
+                target.writestr(
+                    component_info,
+                    component_payload,
+                    compress_type=zipfile.ZIP_DEFLATED,
+                    compresslevel=6,
+                )
 
 
 def verify_package(path: str | Path) -> dict[str, Any]:
@@ -152,6 +200,25 @@ def verify_package(path: str | Path) -> dict[str, Any]:
                     "Frameworks/MIRMetal.framework/MIRMetal"
                 )
         runtime_dependencies_resolved = not runtime_dependency_errors
+        collection = manifest.get("feature_collection", {})
+        collection_required = collection.get("included") is True
+        collection_relative = collection.get(
+            "archive_path",
+            "WeChatMods/FeatureCollection/MiYou.dylib",
+        )
+        collection_path = app_prefix + collection_relative
+        feature_collection_present = collection_path in names
+        expected_hash = collection.get("full_sha256")
+        feature_collection_hash_matched = (
+            not collection_required
+            or (
+                feature_collection_present
+                and isinstance(expected_hash, str)
+                and hashlib.sha256(
+                    archive.read(collection_path)
+                ).hexdigest().upper() == expected_hash.upper()
+            )
+        )
     modules = manifest.get("modules", [])
     enabled = sorted(
         module["id"] for module in modules if module.get("enabled") is True
@@ -169,6 +236,7 @@ def verify_package(path: str | Path) -> dict[str, Any]:
             and loader_executable
             and localization_present
             and runtime_dependencies_resolved
+            and feature_collection_hash_matched
         ),
         "manifest_path": manifest_path,
         "module_count": len(modules),
@@ -179,4 +247,7 @@ def verify_package(path: str | Path) -> dict[str, Any]:
         "localization_present": localization_present,
         "runtime_dependencies_resolved": runtime_dependencies_resolved,
         "runtime_dependency_errors": runtime_dependency_errors,
+        "feature_collection_required": collection_required,
+        "feature_collection_present": feature_collection_present,
+        "feature_collection_hash_matched": feature_collection_hash_matched,
     }

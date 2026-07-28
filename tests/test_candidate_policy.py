@@ -1,8 +1,10 @@
 import plistlib
+import hashlib
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 from wechat_ipa_audit.candidate_policy import inspect_candidate_policy
 
@@ -78,6 +80,50 @@ class CandidatePolicyTests(unittest.TestCase):
         self.assertEqual(
             report["blocked_component_names"],
             ["HBWechatHelper.dylib", "wechatku.dylib"],
+        )
+
+    def test_allows_only_the_exact_repaired_feature_collection_hash(
+        self,
+    ) -> None:
+        from wechat_ipa_audit.feature_collection import PATCHED_SHA256
+
+        payload = b"fixture"
+        self.assertNotEqual(
+            hashlib.sha256(payload).hexdigest().upper(),
+            PATCHED_SHA256,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline = root / "baseline.ipa"
+            candidate = root / "candidate.ipa"
+            _write_ipa(baseline)
+            _write_ipa(
+                candidate,
+                components={
+                    "Frameworks/WeChatMods.dylib": b"loader",
+                    "WeChatMods/FeatureCollection/MiYou.dylib": payload,
+                },
+            )
+
+            report = inspect_candidate_policy(baseline, candidate)
+            with mock.patch(
+                "wechat_ipa_audit.candidate_policy.PATCHED_SHA256",
+                hashlib.sha256(payload).hexdigest().upper(),
+            ):
+                trusted_report = inspect_candidate_policy(
+                    baseline,
+                    candidate,
+                )
+
+        self.assertFalse(report["valid"])
+        self.assertEqual(
+            report["untrusted_feature_components"],
+            ["WeChatMods/FeatureCollection/MiYou.dylib"],
+        )
+        self.assertTrue(trusted_report["valid"])
+        self.assertEqual(
+            trusted_report["trusted_feature_components"],
+            ["WeChatMods/FeatureCollection/MiYou.dylib"],
         )
 
     def test_blocks_expiry_and_redirect_markers_in_the_loader(self) -> None:

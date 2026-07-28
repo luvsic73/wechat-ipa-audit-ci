@@ -94,9 +94,7 @@ static NSString *WMOptionalString(NSDictionary *dictionary,
     descriptor->_configClassName = [configClass copy];
     descriptor->_sharedSelectorName = [sharedSelector copy];
     descriptor->_setterName = [setter copy];
-    NSString *defaultGate = [runtime isEqualToString:@"feature-collection"]
-        ? @"component-repair-required"
-        : @"ready";
+    NSString *defaultGate = @"ready";
     descriptor->_activationGate = [
         WMOptionalString(dictionary, @"activation_gate", defaultGate)
         copy
