@@ -2,6 +2,8 @@
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
 
+#import "../WeChatMods/WMLoginLayoutAdapter.h"
+
 @interface WCTableViewNormalCellManager : NSObject
 @property(nonatomic) SEL action;
 @property(nonatomic, weak) id target;
@@ -477,6 +479,7 @@ static void WMWriteDiagnostics(
 - (BOOL)application:(__unused UIApplication *)application
     didFinishLaunchingWithOptions:
         (__unused NSDictionary *)launchOptions {
+    [WMLoginLayoutAdapter install];
     self.settingsController = [NewSettingViewController new];
     self.settingsController.tabBarItem =
         [[UITabBarItem alloc]

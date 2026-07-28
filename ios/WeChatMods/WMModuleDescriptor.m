@@ -6,9 +6,14 @@ static NSArray<NSString *> *WMBlockedHookFragments(void) {
         @"Auth",
         @"Credential",
         @"Keychain",
+        @"ManualAuthAesReqData",
         @"Pay",
         @"Payment",
-        @"Session"
+        @"Session",
+        @"setBundleId:",
+        @"setClientSeqId:",
+        @"setDeviceName:",
+        @"JailBreakHelper"
     ];
 }
 

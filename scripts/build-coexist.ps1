@@ -7,7 +7,8 @@ param(
     [string]$BundleId = "com.luvsic73.wechatmods",
     [string]$DisplayName,
     [string]$SchemePrefix = "wechatmods",
-    [string]$Report
+    [string]$Report,
+    [string]$SafetyReport
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,9 +22,14 @@ if (-not $Loader) {
     $Loader = Join-Path $projectRoot "dist\WeChatMods.dylib"
 }
 $outputPath = [IO.Path]::GetFullPath($OutputIpa)
+if (-not $SafetyReport) {
+    $SafetyReport = "$outputPath.account-safety.json"
+}
+$safetyReportPath = [IO.Path]::GetFullPath($SafetyReport)
 $temporaryIpa = Join-Path ([IO.Path]::GetDirectoryName($outputPath)) (
     ".wechatmods.{0}.replacement.ipa" -f [guid]::NewGuid().ToString("N")
 )
+$temporarySafetyReport = "$temporaryIpa.account-safety.json"
 
 try {
     & (Join-Path $PSScriptRoot "build-iloader.ps1") `
@@ -47,6 +53,14 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Coexist rewrite failed"
     }
+    py -3 -m wechat_ipa_audit.cli account-safety `
+        $BaseIpa $outputPath `
+        --output $safetyReportPath
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item -LiteralPath $outputPath -Force `
+            -ErrorAction SilentlyContinue
+        throw "Account safety gate blocked the coexist package; report: $safetyReportPath"
+    }
     py -3 -m wechat_ipa_audit.cli verify $outputPath
     if ($LASTEXITCODE -ne 0) {
         throw "Coexist package verification failed"
@@ -54,4 +68,6 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $temporaryIpa -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $temporarySafetyReport -Force `
+        -ErrorAction SilentlyContinue
 }

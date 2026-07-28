@@ -85,7 +85,15 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn("extendedLayoutIncludesOpaqueBars = YES", source)
         self.assertNotIn("ManualAuthAesReqData", source)
         self.assertNotIn("setBundleId:", source)
-        self.assertIn("WMLoginLayoutAdapter.m", build_script)
+        simulator_script = (
+            ROOT / "scripts" / "run-ios-simulator-ui-tests.sh"
+        ).read_text(encoding="utf-8")
+        bootstrap = (
+            ROOT / "ios" / "WeChatMods" / "WeChatModsBootstrap.m"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("WMLoginLayoutAdapter.m", build_script)
+        self.assertIn("WMLoginLayoutAdapter.m", simulator_script)
+        self.assertNotIn("[WMLoginLayoutAdapter install]", bootstrap)
 
     def test_loader_build_includes_settings_sources(self) -> None:
         build_script = (ROOT / "scripts" / "build-loader.sh").read_text(

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .account_safety import assess_account_safety
 from .app_icon import replace_app_icon
 from .audit import audit_ipa
 from .coexist import inspect_coexist, make_coexist_ipa
@@ -78,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
     icon.add_argument("output_ipa")
     icon.add_argument("--report")
 
+    account_safety = commands.add_parser("account-safety")
+    account_safety.add_argument("baseline_ipa")
+    account_safety.add_argument("candidate_ipa")
+    account_safety.add_argument("--output")
+
     verify = commands.add_parser("verify")
     verify.add_argument("ipa")
     verify.add_argument("--output")
@@ -136,6 +142,13 @@ def main(argv: list[str] | None = None) -> int:
             ),
             args.report,
         )
+    elif args.command == "account-safety":
+        result = assess_account_safety(
+            args.baseline_ipa,
+            args.candidate_ipa,
+        )
+        _write_json(result, args.output)
+        return 1 if result["release_blocked"] else 0
     elif args.command == "verify":
         result = verify_package(args.ipa)
         _write_json(result, args.output)
