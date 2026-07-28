@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import plistlib
 import shutil
+import struct
 import tempfile
 import zipfile
 from collections.abc import Callable
@@ -10,6 +11,9 @@ from pathlib import Path
 
 LOADER_NAME = "WeChatMods.dylib"
 LOADER_INSTALL_NAME = f"@executable_path/Frameworks/{LOADER_NAME}"
+_MACH_HEADER_64_SIZE = 32
+_MH_MAGIC_64 = 0xFEEDFACF
+_LC_LOAD_DYLIB = 0xC
 
 
 def _app_paths(archive: zipfile.ZipFile) -> tuple[str, str, str]:
@@ -31,23 +35,68 @@ def _app_paths(archive: zipfile.ZipFile) -> tuple[str, str, str]:
     return app_prefix, app_prefix + executable, app_prefix + "Frameworks/" + LOADER_NAME
 
 
-def _lief_patch(binary_path: Path, install_name: str) -> None:
-    try:
-        import lief
-    except ImportError as error:
-        raise RuntimeError("LIEF is required for Mach-O loader injection") from error
+def _dylib_command(install_name: str) -> bytes:
+    encoded_name = install_name.encode("utf-8") + b"\0"
+    command_size = (24 + len(encoded_name) + 7) & ~7
+    return struct.pack(
+        "<IIIIII",
+        _LC_LOAD_DYLIB,
+        command_size,
+        24,
+        0,
+        0,
+        0,
+    ) + encoded_name.ljust(command_size - 24, b"\0")
 
-    parsed = lief.MachO.parse(str(binary_path))
-    if parsed is None:
-        raise ValueError(f"LIEF did not recognize Mach-O: {binary_path}")
-    binaries = list(parsed)
-    if not binaries:
-        raise ValueError(f"Mach-O has no slices: {binary_path}")
-    for binary in binaries:
-        names = {library.name for library in binary.libraries}
-        if install_name not in names:
-            binary.add_library(install_name)
-    parsed.write(str(binary_path))
+
+def _in_place_patch(binary_path: Path, install_name: str) -> None:
+    data = bytearray(binary_path.read_bytes())
+    if len(data) < _MACH_HEADER_64_SIZE:
+        raise ValueError("main executable is smaller than a Mach-O 64 header")
+
+    magic, _, _, _, command_count, command_bytes, _, _ = struct.unpack_from(
+        "<IIIIIIII", data
+    )
+    if magic != _MH_MAGIC_64:
+        raise ValueError("main executable is not a thin little-endian Mach-O 64")
+
+    cursor = _MACH_HEADER_64_SIZE
+    command_end = cursor + command_bytes
+    for _ in range(command_count):
+        if cursor + 8 > command_end:
+            raise ValueError("Mach-O load command table is truncated")
+        command, size = struct.unpack_from("<II", data, cursor)
+        if size < 8 or cursor + size > command_end:
+            raise ValueError("Mach-O load command has an invalid size")
+        if command == _LC_LOAD_DYLIB and size >= 24:
+            name_offset = struct.unpack_from("<I", data, cursor + 8)[0]
+            if 24 <= name_offset < size:
+                raw_name = data[cursor + name_offset : cursor + size]
+                existing = bytes(raw_name).split(b"\0", 1)[0].decode(
+                    "utf-8", errors="replace"
+                )
+                if existing == install_name:
+                    return
+        cursor += size
+    if cursor != command_end:
+        raise ValueError("Mach-O load command byte count is inconsistent")
+
+    new_command = _dylib_command(install_name)
+    new_end = command_end + len(new_command)
+    if new_end > len(data):
+        raise ValueError("Mach-O has no room for another load command")
+    if any(data[command_end:new_end]):
+        raise ValueError("Mach-O header slack is occupied")
+
+    data[command_end:new_end] = new_command
+    struct.pack_into(
+        "<II",
+        data,
+        16,
+        command_count + 1,
+        command_bytes + len(new_command),
+    )
+    binary_path.write_bytes(data)
 
 
 def inject_loader(
@@ -65,7 +114,7 @@ def inject_loader(
     if not loader_path.is_file():
         raise FileNotFoundError(loader_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    patch = patch_binary or _lief_patch
+    patch = patch_binary or _in_place_patch
 
     with zipfile.ZipFile(input_path) as source:
         app_prefix, executable_member, loader_member = _app_paths(source)
