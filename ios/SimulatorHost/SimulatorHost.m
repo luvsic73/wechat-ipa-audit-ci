@@ -518,7 +518,7 @@ static BOOL WMWriteSnapshot(UIView *view, NSString *fileName) {
         UIGraphicsImageRendererContext *context
     ) {
         [view drawViewHierarchyInRect:view.bounds
-                  afterScreenUpdates:YES];
+                  afterScreenUpdates:NO];
     }];
     NSData *png = UIImagePNGRepresentation(image);
     NSURL *documents = [[NSFileManager defaultManager]

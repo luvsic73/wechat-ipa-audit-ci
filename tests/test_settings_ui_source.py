@@ -187,6 +187,8 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn("simctl", script)
         self.assertIn("SimulatorHostDiagnostics.json", script)
         self.assertIn("SimulatorHostSettings.png", script)
+        self.assertIn("afterScreenUpdates:NO", host)
+        self.assertNotIn("afterScreenUpdates:YES", host)
         self.assertIn("seq 1 120", script)
         self.assertIn("SimulatorHost-launch.log", script)
         self.assertIn('data.get("glass_effect_count", 0) < 2', script)
