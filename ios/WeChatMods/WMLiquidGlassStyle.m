@@ -6,6 +6,8 @@
 
 static void *WMLiquidGlassBackdropKey = &WMLiquidGlassBackdropKey;
 static void *WMGlassBottomConstraintKey = &WMGlassBottomConstraintKey;
+static void *WMPreparedNavigationBarKey = &WMPreparedNavigationBarKey;
+static void *WMPreparedTabBarKey = &WMPreparedTabBarKey;
 static void *WMReduceTransparencyStateKey =
     &WMReduceTransparencyStateKey;
 static void *WMDarkerSystemColorsStateKey =
@@ -86,25 +88,58 @@ static void WMUpdateFloatingTabLayout(
         backdrop,
         WMGlassBottomConstraintKey
     );
-    bottom.constant = -safeBottom;
+    if (fabs(bottom.constant + safeBottom) > 0.5) {
+        bottom.constant = -safeBottom;
+    }
     CGFloat height = MAX(
         44.0,
         CGRectGetHeight(bar.bounds) - 4.0 - safeBottom
     );
-    backdrop.layer.cornerRadius = height * 0.5;
+    CGFloat cornerRadius = height * 0.5;
+    if (fabs(backdrop.layer.cornerRadius - cornerRadius) > 0.5) {
+        backdrop.layer.cornerRadius = cornerRadius;
+    }
     backdrop.layer.cornerCurve = kCACornerCurveContinuous;
     backdrop.clipsToBounds = YES;
 }
 
-static void WMPrepareSystemTabBar(UIView *bar) {
-    if (![bar isKindOfClass:UITabBar.class]) {
+static void WMPrepareNavigationBar(UIView *bar) {
+    if ([objc_getAssociatedObject(
+            bar,
+            WMPreparedNavigationBarKey
+        ) boolValue]) {
         return;
     }
-    UITabBar *tabBar = (UITabBar *)bar;
-    tabBar.translucent = YES;
-    tabBar.barTintColor = UIColor.clearColor;
-    tabBar.backgroundImage = [UIImage new];
-    tabBar.shadowImage = [UIImage new];
+    bar.opaque = NO;
+    bar.backgroundColor = UIColor.clearColor;
+    objc_setAssociatedObject(
+        bar,
+        WMPreparedNavigationBarKey,
+        @YES,
+        OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    );
+}
+
+static void WMPrepareTabBar(UIView *bar) {
+    if ([objc_getAssociatedObject(bar, WMPreparedTabBarKey) boolValue]) {
+        return;
+    }
+    bar.opaque = NO;
+    bar.backgroundColor = UIColor.clearColor;
+    bar.clipsToBounds = NO;
+    if ([bar isKindOfClass:UITabBar.class]) {
+        UITabBar *tabBar = (UITabBar *)bar;
+        tabBar.translucent = YES;
+        tabBar.barTintColor = UIColor.clearColor;
+        tabBar.backgroundImage = [UIImage new];
+        tabBar.shadowImage = [UIImage new];
+    }
+    objc_setAssociatedObject(
+        bar,
+        WMPreparedTabBarKey,
+        @YES,
+        OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    );
 }
 
 static void WMInstallGlassBackdrop(UIView *bar, BOOL floating) {
@@ -172,16 +207,12 @@ static void WMInstallGlassBackdrop(UIView *bar, BOOL floating) {
 }
 
 static void WMGlassifyNavigationBar(UIView *bar) {
-    bar.opaque = NO;
-    bar.backgroundColor = UIColor.clearColor;
+    WMPrepareNavigationBar(bar);
     WMInstallGlassBackdrop(bar, NO);
 }
 
 static void WMGlassifyTabBar(UIView *bar) {
-    bar.opaque = NO;
-    bar.backgroundColor = UIColor.clearColor;
-    bar.clipsToBounds = NO;
-    WMPrepareSystemTabBar(bar);
+    WMPrepareTabBar(bar);
     WMInstallGlassBackdrop(bar, YES);
 }
 

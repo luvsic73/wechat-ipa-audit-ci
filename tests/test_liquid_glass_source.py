@@ -65,6 +65,22 @@ class LiquidGlassSourceTests(unittest.TestCase):
         self.assertIn("UIWindowScene", source)
         self.assertNotIn("UIApplication.sharedApplication.windows", source)
 
+    def test_bar_layout_hooks_are_idempotent(self) -> None:
+        source = (
+            ROOT / "ios" / "WeChatMods" / "WMLiquidGlassStyle.m"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("WMPreparedNavigationBarKey", source)
+        self.assertIn("WMPreparedTabBarKey", source)
+        self.assertIn(
+            "fabs(bottom.constant + safeBottom) > 0.5",
+            source,
+        )
+        self.assertIn(
+            "fabs(backdrop.layer.cornerRadius - cornerRadius) > 0.5",
+            source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
