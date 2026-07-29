@@ -3,7 +3,6 @@
 #import <objc/message.h>
 
 #import "../WeChatMods/WMLocalization.h"
-#import "../WeChatMods/WMLoginLayoutAdapter.h"
 
 @interface MMUINavigationBar : UIView
 @end
@@ -11,7 +10,7 @@
 @implementation MMUINavigationBar
 @end
 
-@interface MMTabBar : UIView
+@interface MMTabBar : UITabBar
 @end
 
 @implementation MMTabBar
@@ -195,7 +194,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"登录布局（零账号夹具）";
+    self.title = @"登录";
     self.view.backgroundColor = UIColor.systemBackgroundColor;
 
     UIStackView *glassTestContent =
@@ -279,6 +278,14 @@
     title.adjustsFontForContentSizeCategory = YES;
     [stack addArrangedSubview:symbol];
     [stack addArrangedSubview:title];
+    UIButton *loginAction = [UIButton
+        buttonWithType:UIButtonTypeSystem];
+    [loginAction setTitle:@"登录" forState:UIControlStateNormal];
+    loginAction.titleLabel.font = [UIFont
+        preferredFontForTextStyle:UIFontTextStyleHeadline];
+    loginAction.accessibilityIdentifier =
+        @"wechatmods.login-action";
+    [stack addArrangedSubview:loginAction];
     [self.view addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
         [stack.centerXAnchor
@@ -457,17 +464,6 @@ static BOOL WMRectNearlyEqual(CGRect left, CGRect right) {
         fabs(CGRectGetHeight(left) - CGRectGetHeight(right)) <= tolerance;
 }
 
-static BOOL WMInsetsNearlyEqual(
-    UIEdgeInsets left,
-    UIEdgeInsets right
-) {
-    CGFloat tolerance = 0.5;
-    return fabs(left.top - right.top) <= tolerance &&
-        fabs(left.left - right.left) <= tolerance &&
-        fabs(left.bottom - right.bottom) <= tolerance &&
-        fabs(left.right - right.right) <= tolerance;
-}
-
 static NSDictionary<NSString *, NSNumber *> *
 WMSettingsAccessibilityMetrics(UIViewController *controller) {
     if (![controller isKindOfClass:UITableViewController.class]) {
@@ -594,6 +590,10 @@ static void WMWriteDiagnostics(
                         WMCountViewsWithIdentifier(
                             window,
                             @"wechatmods.liquid-glass-backdrop"
+                        ) +
+                        WMCountViewsWithIdentifier(
+                            window,
+                            @"wechatmods.floating-tab-glass"
                         );
                     NSInteger glassTestContentCount =
                         WMCountViewsWithIdentifierPrefix(
@@ -606,15 +606,6 @@ static void WMWriteDiagnostics(
                         window,
                         effectClassNames
                     );
-                    UIView *extension = WMFindView(
-                        loginController.view,
-                        @"wechatmods.login-background-extension"
-                    );
-                    CGRect extensionFrame = extension == nil
-                        ? CGRectNull
-                        : [extension.superview
-                            convertRect:extension.frame
-                                 toView:loginController.view];
                     CGRect loginBounds =
                         loginController.view.bounds;
                     UIView *loginContent = WMFindView(
@@ -636,13 +627,45 @@ static void WMWriteDiagnostics(
                             CGRectInset(loginSafeRect, -1.0, -1.0),
                             loginContentFrame
                         );
-                    UIEdgeInsets expectedAdditionalInsets =
-                        UIEdgeInsetsMake(7.0, 3.0, 11.0, 5.0);
-                    BOOL additionalSafeAreaPreserved =
-                        WMInsetsNearlyEqual(
-                            loginController.additionalSafeAreaInsets,
-                            expectedAdditionalInsets
-                        );
+                    UIView *loginAction = WMFindView(
+                        loginController.view,
+                        @"wechatmods.login-action"
+                    );
+                    BOOL loginActionVisible =
+                        loginAction != nil &&
+                        loginAction.window != nil &&
+                        !loginAction.hidden &&
+                        loginAction.alpha > 0.01 &&
+                        CGRectGetWidth(loginAction.bounds) > 1.0 &&
+                        CGRectGetHeight(loginAction.bounds) > 1.0;
+                    BOOL loginTitleVisible =
+                        [loginController.title isEqualToString:@"登录"] &&
+                        loginController.navigationController
+                            .navigationBar.window != nil &&
+                        !loginController.navigationController
+                            .navigationBar.hidden;
+                    UIView *floatingTabGlass = WMFindView(
+                        window,
+                        @"wechatmods.floating-tab-glass"
+                    );
+                    CGRect floatingFrame =
+                        floatingTabGlass == nil
+                            ? CGRectNull
+                            : [floatingTabGlass.superview
+                                convertRect:floatingTabGlass.frame
+                                     toView:floatingTabGlass.superview];
+                    CGRect floatingParentBounds =
+                        floatingTabGlass == nil
+                            ? CGRectNull
+                            : floatingTabGlass.superview.bounds;
+                    BOOL floatingTabGlassDetached =
+                        floatingTabGlass != nil &&
+                        CGRectGetMinX(floatingFrame) >= 8.0 &&
+                        CGRectGetMaxX(floatingFrame) <=
+                            CGRectGetWidth(floatingParentBounds) - 8.0 &&
+                        CGRectGetMinY(floatingFrame) >= 2.0 &&
+                        CGRectGetMaxY(floatingFrame) <=
+                            CGRectGetHeight(floatingParentBounds) - 7.0;
                     CGRect screenBounds =
                         UIScreen.mainScreen.bounds;
                     Class glassEffectClass =
@@ -695,27 +718,25 @@ static void WMWriteDiagnostics(
                                 screenBounds
                             )
                         ),
-                        @"content_reaches_top_edge": @(
-                            extension != nil &&
-                            CGRectGetMinY(extensionFrame) <= 1.0
+                        @"login_title_visible": @(loginTitleVisible),
+                        @"login_action_visible": @(loginActionVisible),
+                        @"floating_tab_glass_present": @(
+                            floatingTabGlass != nil
                         ),
-                        @"content_reaches_bottom_edge": @(
-                            extension != nil &&
-                            CGRectGetMaxY(extensionFrame) >=
-                                CGRectGetHeight(loginBounds) - 1.0
-                        ),
-                        @"login_additional_safe_area_preserved": @(
-                            additionalSafeAreaPreserved
+                        @"floating_tab_glass_detached": @(
+                            floatingTabGlassDetached
                         ),
                         @"login_content_inside_safe_area": @(
                             loginContentInsideSafeArea
                         ),
+                        @"floating_tab_glass_frame":
+                            WMRectComponents(floatingFrame),
+                        @"floating_tab_parent_bounds":
+                            WMRectComponents(floatingParentBounds),
                         @"login_content_frame":
                             WMRectComponents(loginContentFrame),
                         @"login_safe_rect":
                             WMRectComponents(loginSafeRect),
-                        @"extension_frame":
-                            WMRectComponents(extensionFrame),
                         @"login_bounds":
                             WMRectComponents(loginBounds),
                         @"safe_area_insets": @{
@@ -764,7 +785,6 @@ static void WMWriteDiagnostics(
 - (BOOL)application:(__unused UIApplication *)application
     didFinishLaunchingWithOptions:
         (__unused NSDictionary *)launchOptions {
-    [WMLoginLayoutAdapter install];
     self.settingsController = [NewSettingViewController new];
     self.settingsController.tabBarItem =
         [[UITabBarItem alloc]
@@ -790,8 +810,6 @@ static void WMWriteDiagnostics(
 
     self.loginController =
         [WCAccountLoginByQRCodeViewController new];
-    self.loginController.additionalSafeAreaInsets =
-        UIEdgeInsetsMake(7.0, 3.0, 11.0, 5.0);
     self.loginController.tabBarItem =
         [[UITabBarItem alloc]
             initWithTitle:@"登录布局"

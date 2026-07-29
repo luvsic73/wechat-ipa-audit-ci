@@ -10,7 +10,7 @@
 static NSString *const WMFeatureCollectionRelativePath =
     @"Frameworks/MiYou.dylib";
 static NSString *const WMFeatureCollectionSHA256 =
-    @"949867747FE5189212FAA3B28137157220BA7B40D77A94404A205F45B61565E1";
+    @"69B4858E15269772CE4C15ADC2E3372C10C468AC42ED9149E84243BCF57F0C91";
 
 static NSDictionary<NSString *, id> *WMCollectionHealth(
     NSString *status,

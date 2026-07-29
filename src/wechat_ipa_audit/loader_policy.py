@@ -8,9 +8,8 @@ from .macho import is_macho, parse_macho
 
 
 _REQUIRED_MARKERS = (
-    "WMLoginLayoutAdapter",
-    "UIBackgroundExtensionView",
     "WMLiquidGlassStyle",
+    "wechatmods.floating-tab-glass",
     "WMSettingsEntry",
     "WMAntiRevokeModule",
     "setInteractive:",

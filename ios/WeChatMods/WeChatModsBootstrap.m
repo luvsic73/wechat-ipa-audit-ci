@@ -4,7 +4,6 @@
 #import "WMActivationPlanner.h"
 #import "WMFeatureStore.h"
 #import "WMLiquidGlassStyle.h"
-#import "WMLoginLayoutAdapter.h"
 #import "WMModuleCatalog.h"
 #import "WMModuleDescriptor.h"
 #import "WMModuleRuntime.h"
@@ -57,7 +56,6 @@ static void WMBootstrap(void) {
                forKey:WMNetworkFirewallInstalledKey];
 
     [WMLiquidGlassStyle install];
-    [WMLoginLayoutAdapter install];
     [WMSettingsEntry install];
 
     WMModuleCatalog *catalog = WMModuleCatalog.sharedCatalog;

@@ -56,7 +56,7 @@ class IOSModuleBackendSourceTests(unittest.TestCase):
         source = (IOS / "WMFeatureCollectionAdapter.m").read_text(encoding="utf-8")
 
         self.assertIn(
-            "949867747FE5189212FAA3B28137157220BA7B40D77A94404A205F45B61565E1",
+            "69B4858E15269772CE4C15ADC2E3372C10C468AC42ED9149E84243BCF57F0C91",
             source,
         )
         self.assertIn("RTLD_NOW | RTLD_LOCAL", source)

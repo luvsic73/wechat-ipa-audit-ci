@@ -24,7 +24,6 @@ SOURCES=(
   "$ROOT/ios/WeChatMods/WMFeatureStore.m"
   "$ROOT/ios/WeChatMods/WMLocalization.m"
   "$ROOT/ios/WeChatMods/WMLiquidGlassStyle.m"
-  "$ROOT/ios/WeChatMods/WMLoginLayoutAdapter.m"
   "$ROOT/ios/WeChatMods/WMModuleCatalog.m"
   "$ROOT/ios/WeChatMods/WMModuleDescriptor.m"
   "$ROOT/ios/WeChatMods/WMModuleRuntime.m"
@@ -207,9 +206,10 @@ expected = {
     "settings_controller_opened": True,
     "settings_snapshot_written": True,
     "window_matches_screen": True,
-    "content_reaches_top_edge": True,
-    "content_reaches_bottom_edge": True,
-    "login_additional_safe_area_preserved": True,
+    "login_title_visible": True,
+    "login_action_visible": True,
+    "floating_tab_glass_present": True,
+    "floating_tab_glass_detached": True,
     "login_content_inside_safe_area": True,
 }
 errors = []

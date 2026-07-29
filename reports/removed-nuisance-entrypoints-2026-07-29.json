@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "component": "MiYou.dylib",
+  "input_sha256": "846829A8351934AA805F4A77BE59E11DB6424FED53AD151758C8B4EFB480835F",
+  "output_sha256": "69B4858E15269772CE4C15ADC2E3372C10C468AC42ED9149E84243BCF57F0C91",
+  "verification": {
+    "tool": "Ghidra 12.1.2 MCP",
+    "program": "MiYou.dylib",
+    "method": "function-level decompilation plus pinned ARM64 entry-byte checks"
+  },
+  "patches": [
+    {
+      "address": "0x1156d8",
+      "symbol": "NSSignature.loadSignature",
+      "evidence": "Reads the app executable and Mach-O signature structures and stores protection state.",
+      "replacement": "ret",
+      "purpose": "Remove embedded signature, expiry, and customization reminder logic."
+    },
+    {
+      "address": "0x924890",
+      "symbol": "MiYouSettingViewController.addAuthorizeSection",
+      "evidence": "Calls isFollowAuthor and adds a settings cell whose action is followAouthor.",
+      "replacement": "ret",
+      "purpose": "Remove the author authorization or public-account settings section."
+    },
+    {
+      "address": "0x927abc",
+      "symbol": "MiYouSettingViewController.followAouthor",
+      "evidence": "Looks up the embedded author contact and pushes its conversation/controller.",
+      "replacement": "ret",
+      "purpose": "Remove the forced author/public-account jump."
+    },
+    {
+      "address": "0xa08398",
+      "symbol": "MiYouConfig.isFollowAuthor",
+      "evidence": "Queries stored state and brand contacts to decide whether the embedded author is followed.",
+      "replacement": "mov w0, #1; ret",
+      "purpose": "Keep the feature collection usable without showing the author-follow gate."
+    },
+    {
+      "address": "0xa600a0",
+      "symbol": "identity-environment-constructor",
+      "evidence": "Previously pinned constructor repair retained unchanged.",
+      "replacement": "ret",
+      "purpose": "Preserve the prior removal of identity and environment rewrites."
+    }
+  ],
+  "scope_guard": {
+    "changed_entrypoints": 5,
+    "all_other_bytes_preserved": true,
+    "feature_configuration_setters_preserved": true
+  }
+}

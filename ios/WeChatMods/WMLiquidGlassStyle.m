@@ -5,6 +5,7 @@
 #import <objc/runtime.h>
 
 static void *WMLiquidGlassBackdropKey = &WMLiquidGlassBackdropKey;
+static void *WMGlassBottomConstraintKey = &WMGlassBottomConstraintKey;
 static void *WMReduceTransparencyStateKey =
     &WMReduceTransparencyStateKey;
 static void *WMDarkerSystemColorsStateKey =
@@ -76,11 +77,44 @@ static void WMUpdateGlassBackdrop(UIVisualEffectView *backdrop) {
     );
 }
 
-static void WMInstallGlassBackdrop(UIView *bar) {
+static void WMUpdateFloatingTabLayout(
+    UIView *bar,
+    UIVisualEffectView *backdrop
+) {
+    CGFloat safeBottom = MAX(bar.safeAreaInsets.bottom, 8.0);
+    NSLayoutConstraint *bottom = objc_getAssociatedObject(
+        backdrop,
+        WMGlassBottomConstraintKey
+    );
+    bottom.constant = -safeBottom;
+    CGFloat height = MAX(
+        44.0,
+        CGRectGetHeight(bar.bounds) - 4.0 - safeBottom
+    );
+    backdrop.layer.cornerRadius = height * 0.5;
+    backdrop.layer.cornerCurve = kCACornerCurveContinuous;
+    backdrop.clipsToBounds = YES;
+}
+
+static void WMPrepareSystemTabBar(UIView *bar) {
+    if (![bar isKindOfClass:UITabBar.class]) {
+        return;
+    }
+    UITabBar *tabBar = (UITabBar *)bar;
+    tabBar.translucent = YES;
+    tabBar.barTintColor = UIColor.clearColor;
+    tabBar.backgroundImage = [UIImage new];
+    tabBar.shadowImage = [UIImage new];
+}
+
+static void WMInstallGlassBackdrop(UIView *bar, BOOL floating) {
     UIVisualEffectView *backdrop =
         objc_getAssociatedObject(bar, WMLiquidGlassBackdropKey);
     if (backdrop != nil && backdrop.superview == bar) {
         WMUpdateGlassBackdrop(backdrop);
+        if (floating) {
+            WMUpdateFloatingTabLayout(bar, backdrop);
+        }
         return;
     }
     if (backdrop == nil) {
@@ -88,8 +122,9 @@ static void WMInstallGlassBackdrop(UIView *bar) {
         backdrop.translatesAutoresizingMaskIntoConstraints = NO;
         backdrop.userInteractionEnabled = NO;
         backdrop.accessibilityElementsHidden = YES;
-        backdrop.accessibilityIdentifier =
-            @"wechatmods.liquid-glass-backdrop";
+        backdrop.accessibilityIdentifier = floating
+            ? @"wechatmods.floating-tab-glass"
+            : @"wechatmods.liquid-glass-backdrop";
         objc_setAssociatedObject(
             bar,
             WMLiquidGlassBackdropKey,
@@ -99,18 +134,55 @@ static void WMInstallGlassBackdrop(UIView *bar) {
     }
     WMUpdateGlassBackdrop(backdrop);
     [bar insertSubview:backdrop atIndex:0];
-    [NSLayoutConstraint activateConstraints:@[
-        [backdrop.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor],
-        [backdrop.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor],
-        [backdrop.topAnchor constraintEqualToAnchor:bar.topAnchor],
-        [backdrop.bottomAnchor constraintEqualToAnchor:bar.bottomAnchor]
-    ]];
+    if (floating) {
+        NSLayoutConstraint *bottom = [
+            backdrop.bottomAnchor constraintEqualToAnchor:bar.bottomAnchor
+        ];
+        objc_setAssociatedObject(
+            backdrop,
+            WMGlassBottomConstraintKey,
+            bottom,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+        [NSLayoutConstraint activateConstraints:@[
+            [backdrop.leadingAnchor
+                constraintEqualToAnchor:bar.leadingAnchor
+                               constant:12.0],
+            [backdrop.trailingAnchor
+                constraintEqualToAnchor:bar.trailingAnchor
+                               constant:-12.0],
+            [backdrop.topAnchor
+                constraintEqualToAnchor:bar.topAnchor
+                               constant:4.0],
+            bottom
+        ]];
+        WMUpdateFloatingTabLayout(bar, backdrop);
+    } else {
+        [NSLayoutConstraint activateConstraints:@[
+            [backdrop.leadingAnchor
+                constraintEqualToAnchor:bar.leadingAnchor],
+            [backdrop.trailingAnchor
+                constraintEqualToAnchor:bar.trailingAnchor],
+            [backdrop.topAnchor
+                constraintEqualToAnchor:bar.topAnchor],
+            [backdrop.bottomAnchor
+                constraintEqualToAnchor:bar.bottomAnchor]
+        ]];
+    }
 }
 
-static void WMGlassifyCustomBar(UIView *bar) {
+static void WMGlassifyNavigationBar(UIView *bar) {
     bar.opaque = NO;
     bar.backgroundColor = UIColor.clearColor;
-    WMInstallGlassBackdrop(bar);
+    WMInstallGlassBackdrop(bar, NO);
+}
+
+static void WMGlassifyTabBar(UIView *bar) {
+    bar.opaque = NO;
+    bar.backgroundColor = UIColor.clearColor;
+    bar.clipsToBounds = NO;
+    WMPrepareSystemTabBar(bar);
+    WMInstallGlassBackdrop(bar, YES);
 }
 
 static void WMCustomNavigationDidMove(
@@ -124,7 +196,7 @@ static void WMCustomNavigationDidMove(
         );
     }
     if (bar.window != nil) {
-        WMGlassifyCustomBar(bar);
+        WMGlassifyNavigationBar(bar);
     }
 }
 
@@ -136,7 +208,7 @@ static void WMCustomTabDidMove(UIView *bar, SEL selector) {
         );
     }
     if (bar.window != nil) {
-        WMGlassifyCustomBar(bar);
+        WMGlassifyTabBar(bar);
     }
 }
 
@@ -151,7 +223,7 @@ static void WMCustomNavigationLayout(
         );
     }
     if (bar.window != nil) {
-        WMGlassifyCustomBar(bar);
+        WMGlassifyNavigationBar(bar);
     }
 }
 
@@ -163,7 +235,7 @@ static void WMCustomTabLayout(UIView *bar, SEL selector) {
         );
     }
     if (bar.window != nil) {
-        WMGlassifyCustomBar(bar);
+        WMGlassifyTabBar(bar);
     }
 }
 
@@ -212,44 +284,26 @@ static BOOL WMInstallCustomBarHooks(
     return didMoveInstalled && layoutInstalled;
 }
 
-static BOOL WMUsesNativeNavigationGlass(Class viewClass) {
-    return viewClass != Nil &&
-        [viewClass isSubclassOfClass:UINavigationBar.class];
-}
-
-static BOOL WMUsesNativeTabGlass(Class viewClass) {
-    return viewClass != Nil &&
-        [viewClass isSubclassOfClass:UITabBar.class];
-}
-
 static void WMInstallDynamicBarHooks(void) {
     if (!WMCustomNavigationHookInstalled) {
         Class navigationClass = NSClassFromString(@"MMUINavigationBar");
-        if (WMUsesNativeNavigationGlass(navigationClass)) {
-            WMCustomNavigationHookInstalled = YES;
-        } else {
-            WMCustomNavigationHookInstalled = WMInstallCustomBarHooks(
-                navigationClass,
-                (IMP)WMCustomNavigationDidMove,
-                &WMCustomNavigationDidMoveOriginal,
-                (IMP)WMCustomNavigationLayout,
-                &WMCustomNavigationLayoutOriginal
-            );
-        }
+        WMCustomNavigationHookInstalled = WMInstallCustomBarHooks(
+            navigationClass,
+            (IMP)WMCustomNavigationDidMove,
+            &WMCustomNavigationDidMoveOriginal,
+            (IMP)WMCustomNavigationLayout,
+            &WMCustomNavigationLayoutOriginal
+        );
     }
     if (!WMCustomTabHookInstalled) {
         Class tabClass = NSClassFromString(@"MMTabBar");
-        if (WMUsesNativeTabGlass(tabClass)) {
-            WMCustomTabHookInstalled = YES;
-        } else {
-            WMCustomTabHookInstalled = WMInstallCustomBarHooks(
-                tabClass,
-                (IMP)WMCustomTabDidMove,
-                &WMCustomTabDidMoveOriginal,
-                (IMP)WMCustomTabLayout,
-                &WMCustomTabLayoutOriginal
-            );
-        }
+        WMCustomTabHookInstalled = WMInstallCustomBarHooks(
+            tabClass,
+            (IMP)WMCustomTabDidMove,
+            &WMCustomTabDidMoveOriginal,
+            (IMP)WMCustomTabLayout,
+            &WMCustomTabLayoutOriginal
+        );
     }
 }
 

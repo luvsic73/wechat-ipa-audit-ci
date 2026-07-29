@@ -72,35 +72,21 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertNotIn("WMInstallWindowGlassChrome", source)
         self.assertNotIn("WMInstallWindowEdgeGlass", source)
 
-    def test_login_layout_adapter_is_ui_only_and_uses_ios_26_background_extension(
+    def test_official_login_layout_is_left_unhooked(
         self,
     ) -> None:
-        source = (
-            ROOT / "ios" / "WeChatMods" / "WMLoginLayoutAdapter.m"
-        ).read_text(encoding="utf-8")
         build_script = (ROOT / "scripts" / "build-loader.sh").read_text(
             encoding="utf-8"
         )
-
-        self.assertIn('@"WCAccountLoginByQRCodeViewController"', source)
-        self.assertIn('NSClassFromString(@"UIBackgroundExtensionView")', source)
-        self.assertIn("edgesForExtendedLayout = UIRectEdgeAll", source)
-        self.assertIn("extendedLayoutIncludesOpaqueBars = YES", source)
-        self.assertNotIn("additionalSafeAreaInsets =", source)
-        self.assertNotIn("insetsLayoutMarginsFromSafeArea =", source)
-        self.assertNotIn("preservesSuperviewLayoutMargins =", source)
-        self.assertNotIn('NSSelectorFromString(@"viewDidLayoutSubviews")', source)
-        self.assertNotIn("ManualAuthAesReqData", source)
-        self.assertNotIn("setBundleId:", source)
         simulator_script = (
             ROOT / "scripts" / "run-ios-simulator-ui-tests.sh"
         ).read_text(encoding="utf-8")
         bootstrap = (
             ROOT / "ios" / "WeChatMods" / "WeChatModsBootstrap.m"
         ).read_text(encoding="utf-8")
-        self.assertIn("WMLoginLayoutAdapter.m", build_script)
-        self.assertIn("WMLoginLayoutAdapter.m", simulator_script)
-        self.assertIn("[WMLoginLayoutAdapter install]", bootstrap)
+        self.assertNotIn("WMLoginLayoutAdapter", build_script)
+        self.assertNotIn("WMLoginLayoutAdapter", simulator_script)
+        self.assertNotIn("WMLoginLayoutAdapter", bootstrap)
 
     def test_settings_are_dynamic_type_accessible_and_localized(self) -> None:
         controller = (
@@ -179,15 +165,17 @@ class SettingsUISourceTests(unittest.TestCase):
             "glass_effect_default_initializer_available",
             "glass_effect_class_names",
             "window_matches_screen",
-            "content_reaches_top_edge",
-            "content_reaches_bottom_edge",
-            "login_additional_safe_area_preserved",
-            "login_content_inside_safe_area",
+            "login_title_visible",
+            "login_action_visible",
+            "floating_tab_glass_present",
+            "floating_tab_glass_detached",
             "glass_test_content_count",
         ):
             self.assertIn(key, host)
         self.assertIn("@interface MMUINavigationBar : UIView", host)
-        self.assertIn("@interface MMTabBar : UIView", host)
+        self.assertIn("@interface MMTabBar : UITabBar", host)
+        self.assertIn('setTitle:@"登录"', host)
+        self.assertIn('@"wechatmods.login-action"', host)
         self.assertLess(
             host.index("tabs.selectedIndex = 1;"),
             host.index("WMCountGlassEffects(window)"),
@@ -203,11 +191,10 @@ class SettingsUISourceTests(unittest.TestCase):
         self.assertIn("SimulatorHost-launch.log", script)
         self.assertIn('data.get("glass_effect_count", 0) < 2', script)
         self.assertIn('data.get("glass_backdrop_count", 0) < 2', script)
-        self.assertIn(
-            '"login_additional_safe_area_preserved": True',
-            script,
-        )
-        self.assertIn('"login_content_inside_safe_area": True', script)
+        self.assertIn('"login_title_visible": True', script)
+        self.assertIn('"login_action_visible": True', script)
+        self.assertIn('"floating_tab_glass_present": True', script)
+        self.assertIn('"floating_tab_glass_detached": True', script)
         self.assertIn('data.get("glass_test_content_count", 0) < 3', script)
         self.assertIn("simulator-ui", workflow)
 

@@ -38,6 +38,11 @@ class LiquidGlassSourceTests(unittest.TestCase):
         self.assertNotIn("UIToolbarAppearance", source)
         self.assertNotIn("UINavigationBar.appearance", source)
         self.assertNotIn("WMGlassifyViewTree", source)
+        self.assertNotIn("WMUsesNativeTabGlass", source)
+        self.assertIn("wechatmods.floating-tab-glass", source)
+        self.assertIn("UITabBar", source)
+        self.assertIn("shadowImage", source)
+        self.assertIn("backgroundImage", source)
         self.assertIn("WMLiquidGlassStyle.m", build_script)
 
     def test_glass_respects_accessibility_and_refreshes_visible_scenes(self) -> None:

@@ -29,9 +29,8 @@ class LoaderPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             loader = self._write_loader(
                 Path(temporary),
-                b"WMLoginLayoutAdapter",
-                b"UIBackgroundExtensionView",
                 b"WMLiquidGlassStyle",
+                b"wechatmods.floating-tab-glass",
                 b"WMSettingsEntry",
                 b"WMAntiRevokeModule",
                 b"setInteractive:",
@@ -43,7 +42,7 @@ class LoaderPolicyTests(unittest.TestCase):
             self.assertEqual(result["missing_required_markers"], [])
             self.assertEqual(result["forbidden_marker_hits"], [])
 
-    def test_rejects_the_previous_loader_missing_login_layout(self) -> None:
+    def test_rejects_the_previous_non_floating_glass_loader(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             loader = self._write_loader(
                 Path(temporary),
@@ -57,7 +56,7 @@ class LoaderPolicyTests(unittest.TestCase):
 
             self.assertFalse(result["valid"])
             self.assertIn(
-                "WMLoginLayoutAdapter",
+                "wechatmods.floating-tab-glass",
                 result["missing_required_markers"],
             )
 
@@ -65,9 +64,8 @@ class LoaderPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             loader = self._write_loader(
                 Path(temporary),
-                b"WMLoginLayoutAdapter",
-                b"UIBackgroundExtensionView",
                 b"WMLiquidGlassStyle",
+                b"wechatmods.floating-tab-glass",
                 b"WMSettingsEntry",
                 b"WMAntiRevokeModule",
                 b"setInteractive:",
