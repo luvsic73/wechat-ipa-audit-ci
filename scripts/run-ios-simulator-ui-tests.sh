@@ -175,6 +175,10 @@ for _ in $(seq 1 120); do
   sleep 0.5
 done
 if [[ ! -s "$DIAGNOSTICS" ]]; then
+  PHASE="$DATA_CONTAINER/Documents/SimulatorHostPhase.txt"
+  if [[ -s "$PHASE" ]]; then
+    cp "$PHASE" "$ARTIFACTS/SimulatorHostPhase.txt"
+  fi
   xcrun simctl spawn "$UDID" log show \
     --style compact \
     --last 5m \

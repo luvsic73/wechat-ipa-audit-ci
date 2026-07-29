@@ -517,8 +517,7 @@ static BOOL WMWriteSnapshot(UIView *view, NSString *fileName) {
     UIImage *image = [renderer imageWithActions:^(
         UIGraphicsImageRendererContext *context
     ) {
-        [view drawViewHierarchyInRect:view.bounds
-                  afterScreenUpdates:NO];
+        [view.layer renderInContext:context.CGContext];
     }];
     NSData *png = UIImagePNGRepresentation(image);
     NSURL *documents = [[NSFileManager defaultManager]
@@ -529,12 +528,22 @@ static BOOL WMWriteSnapshot(UIView *view, NSString *fileName) {
     ] atomically:YES];
 }
 
+static void WMWritePhase(NSString *phase) {
+    NSURL *documents = [[NSFileManager defaultManager]
+        URLsForDirectory:NSDocumentDirectory
+               inDomains:NSUserDomainMask].firstObject;
+    [phase writeToURL:[
+        documents URLByAppendingPathComponent:@"SimulatorHostPhase.txt"
+    ] atomically:YES encoding:NSUTF8StringEncoding error:nil];
+}
+
 static void WMWriteDiagnostics(
     UIWindow *window,
     UINavigationController *settingsNavigation,
     NewSettingViewController *settingsController,
     WCAccountLoginByQRCodeViewController *loginController
 ) {
+    WMWritePhase(@"opening-settings");
     WCTableViewManager *manager =
         settingsController.simulatorTableManager;
     NSInteger entryCount = WMSettingsEntryCount(manager);
@@ -560,15 +569,18 @@ static void WMWriteDiagnostics(
             UIViewController *settingsViewController =
                 settingsNavigation.topViewController;
             [window layoutIfNeeded];
+            WMWritePhase(@"measuring-settings");
             NSDictionary<NSString *, NSNumber *> *
                 accessibilityMetrics =
                     WMSettingsAccessibilityMetrics(
                         settingsViewController
                     );
+            WMWritePhase(@"rendering-settings-snapshot");
             BOOL settingsSnapshotWritten = WMWriteSnapshot(
                 window,
                 @"SimulatorHostSettings.png"
             );
+            WMWritePhase(@"showing-login");
             UITabBarController *tabs =
                 (UITabBarController *)window.rootViewController;
             tabs.selectedIndex = 1;
@@ -763,6 +775,7 @@ static void WMWriteDiagnostics(
                                        NSJSONWritingSortedKeys
                                      error:nil];
                     [json writeToURL:output atomically:YES];
+                    WMWritePhase(@"diagnostics-written");
                 }
             );
         }
