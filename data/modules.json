@@ -4,8 +4,8 @@
   "feature_collection": {
     "component": "MiYou.dylib",
     "source_sha256": "846829A8351934AA805F4A77BE59E11DB6424FED53AD151758C8B4EFB480835F",
-    "full_sha256": "949867747FE5189212FAA3B28137157220BA7B40D77A94404A205F45B61565E1",
-    "text_sha256": "FD826AAE0585CFF85640D8F9860352741CD4DF4CA0EA8008E0AD419EA29F073D",
+    "full_sha256": "69B4858E15269772CE4C15ADC2E3372C10C468AC42ED9149E84243BCF57F0C91",
+    "text_sha256": "A94AC160FFDB55BB202881BFF933888FF5D196A36B210CC66918FEDAC07AE0BF",
     "archive_path": "Frameworks/MiYou.dylib",
     "runtime_class": "MiYouConfig",
     "load_policy": "load-only-when-feature-enabled",
@@ -13,8 +13,11 @@
     "activation_gate": "ready",
     "repair_evidence": [
       "constructor-17-entry-0xA600A0",
-      "entry-FC6FBAA9-replaced-with-RET-C0035FD6",
-      "patched-sha256-pinned"
+      "embedded-signature-entry-0x1156D8",
+      "author-section-entry-0x924890",
+      "follow-author-entry-0x927ABC",
+      "follow-gate-entry-0xA08398",
+      "five-entrypoints-and-patched-sha256-pinned"
     ]
   },
   "modules": [

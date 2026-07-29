@@ -1,4 +1,5 @@
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +60,10 @@ class FeatureCollectionRepairTests(unittest.TestCase):
         )
 
     def test_project_hashes_are_pinned(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        catalog = json.loads(
+            (root / "data" / "modules.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(
             ORIGINAL_SHA256,
             "846829A8351934AA805F4A77BE59E11DB6424FED53AD151758C8B4EFB480835F",
@@ -66,6 +71,10 @@ class FeatureCollectionRepairTests(unittest.TestCase):
         self.assertEqual(
             PATCHED_SHA256,
             "69B4858E15269772CE4C15ADC2E3372C10C468AC42ED9149E84243BCF57F0C91",
+        )
+        self.assertEqual(
+            catalog["feature_collection"]["full_sha256"],
+            PATCHED_SHA256,
         )
 
     def test_rejects_an_unknown_constructor_layout(self) -> None:
